@@ -26,6 +26,10 @@
      class="nav-link {% if request.resolver_match.url_name == 'historique' %}active{% endif %}">
     <i class="bi bi-clock-history"></i> Historique
   </a>
+  <a href="{% url 'import_excel' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'import_excel' %}active{% endif %}">
+    <i class="bi bi-file-earmark-arrow-up"></i> Import Excel
+  </a>
   <a href="{% url 'liste_engins' %}"
      class="nav-link {% if request.resolver_match.url_name == 'liste_engins' %}active{% endif %}">
     <i class="bi bi-list-ul"></i> Liste engins

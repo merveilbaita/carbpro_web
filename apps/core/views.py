@@ -403,3 +403,90 @@ def export_excel(request):
 def liste_engins(request):
     engins = Engin.objects.filter(actif=True).order_by("id_engin")
     return render(request, "core/liste_engins.html", {"engins": engins})
+
+@login_required
+def import_excel(request):
+    rapport = None
+
+    if request.method == "POST" and request.FILES.get("fichier"):
+        import tempfile, os
+        fichier = request.FILES["fichier"]
+
+        # Vérifier extension
+        if not fichier.name.endswith((".xlsx", ".xls")):
+            messages.error(request, "❌ Format invalide. Seuls les fichiers .xlsx sont acceptés.")
+            return redirect("import_excel")
+
+        # Sauvegarder temporairement
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            for chunk in fichier.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        try:
+            from .import_service import importer_depuis_excel
+            rapport = importer_depuis_excel(tmp_path, operateur=request.user)
+
+            total_ok = (rapport["entrees_stock_ok"] +
+                        rapport["rav_ok"] +
+                        rapport["diverses_ok"])
+
+            if total_ok > 0:
+                messages.success(request,
+                    f"✅ Import terminé : {rapport['entrees_stock_ok']} entrées stock, "
+                    f"{rapport['rav_ok']} ravitaillements engins, "
+                    f"{rapport['diverses_ok']} consommations diverses."
+                )
+            else:
+                messages.warning(request,
+                    "⚠️ Aucune donnée importée. Vérifiez le format du fichier.")
+
+        except Exception as ex:
+            messages.error(request, f"❌ Erreur lors de l'import : {ex}")
+        finally:
+            os.unlink(tmp_path)
+
+    return render(request, "core/import_excel.html", {"rapport": rapport})
+# ── Import Excel ───────────────────────────────────────────────
+
+@login_required
+def import_excel(request):
+    rapport = None
+
+    if request.method == "POST" and request.FILES.get("fichier"):
+        import tempfile, os
+        fichier = request.FILES["fichier"]
+
+        if not fichier.name.endswith((".xlsx", ".xls")):
+            messages.error(request, "❌ Format invalide. Seuls les fichiers .xlsx sont acceptés.")
+            return redirect("import_excel")
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+            for chunk in fichier.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        try:
+            from .import_service import importer_depuis_excel
+            rapport = importer_depuis_excel(tmp_path, operateur=request.user)
+
+            total_ok = (rapport["entrees_stock_ok"] +
+                        rapport["rav_ok"] +
+                        rapport["diverses_ok"])
+
+            if total_ok > 0:
+                messages.success(request,
+                    f"✅ Import terminé : {rapport['entrees_stock_ok']} entrées stock, "
+                    f"{rapport['rav_ok']} ravitaillements engins, "
+                    f"{rapport['diverses_ok']} consommations diverses."
+                )
+            else:
+                messages.warning(request,
+                    "⚠️ Aucune donnée importée. Vérifiez le format du fichier.")
+
+        except Exception as ex:
+            messages.error(request, f"❌ Erreur lors de l'import : {ex}")
+        finally:
+            os.unlink(tmp_path)
+
+    return render(request, "core/import_excel.html", {"rapport": rapport})
