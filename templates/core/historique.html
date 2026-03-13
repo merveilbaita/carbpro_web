@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Historique{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0" style="color:#1A3A6B">
+    <i class="bi bi-clock-history"></i> Historique des opérations
+  </h5>
+
+  <!-- Filtres mois/année -->
+  <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
+    <select name="mois" class="form-select form-select-sm" style="width:130px">
+      {% for val, label in mois_choices %}
+      <option value="{{ val }}" {% if val == mois %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <select name="annee" class="form-select form-select-sm" style="width:90px">
+      {% for a in annees %}
+      <option value="{{ a }}" {% if a == annee %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">
+      <i class="bi bi-filter"></i> Filtrer
+    </button>
+    <a href="{% url 'export_excel' %}?mois={{ mois }}&annee={{ annee }}"
+       class="btn btn-success btn-sm">
+      <i class="bi bi-file-earmark-excel"></i> Export Excel
+    </a>
+  </form>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" id="histTabs">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-stock">
+      <i class="bi bi-arrow-down-circle"></i> Stock
+      <span class="badge bg-primary ms-1">{{ ops.count }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-engins">
+      <i class="bi bi-gear-fill"></i> Engins
+      <span class="badge bg-success ms-1">{{ ravs.count }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-divers">
+      <i class="bi bi-droplet-fill"></i> Divers
+      <span class="badge bg-warning text-dark ms-1">{{ divs.count }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ── Onglet Stock ──────────────────────────────────────── -->
+  <div class="tab-pane fade show active" id="tab-stock">
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Date</th><th>Type</th><th>Quantité</th>
+              <th>Stock après</th><th>Description</th><th>Opérateur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for op in ops %}
+            <tr>
+              <td>{{ op.date|date:"d/m/Y" }}</td>
+              <td>
+                {% if op.type == "entree" %}
+                  <span class="badge bg-success">Entrée</span>
+                {% else %}
+                  <span class="badge bg-danger">Sortie</span>
+                {% endif %}
+              </td>
+              <td class="fw-semibold">{{ op.quantite|floatformat:1 }} L</td>
+              <td class="{% if op.stock_apres < 0 %}text-danger fw-bold{% endif %}">
+                {{ op.stock_apres|floatformat:1 }} L
+              </td>
+              <td><small>{{ op.description|default:"—" }}</small></td>
+              <td><small class="text-muted">{{ op.operateur.username|default:"—" }}</small></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="text-center text-muted py-4">Aucune opération ce mois</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Onglet Engins ─────────────────────────────────────── -->
+  <div class="tab-pane fade" id="tab-engins">
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Date</th><th>Engin</th><th>Index Préc.</th>
+              <th>Index Act.</th><th>Diff.</th><th>Qté</th>
+              <th>Taux</th><th>Statut</th><th>Commentaire</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for rav in ravs %}
+            <tr>
+              <td>{{ rav.date|date:"d/m/Y" }}</td>
+              <td class="fw-semibold">{{ rav.engin.id_engin }}</td>
+              <td>{{ rav.index_precedent|floatformat:1 }}</td>
+              <td>{{ rav.index_actuel|floatformat:1 }}</td>
+              <td>{{ rav.difference_index|floatformat:1 }}</td>
+              <td class="fw-semibold">{{ rav.qte_donnee|floatformat:1 }} L</td>
+              <td>{{ rav.taux_reel|floatformat:2|default:"—" }}</td>
+              <td>
+                {% if rav.statut == "normal" %}
+                  <span class="badge bg-success">Normal</span>
+                {% elif rav.statut == "anomalie" %}
+                  <span class="badge bg-danger">Anomalie</span>
+                {% elif rav.statut == "panne_index" %}
+                  <span class="badge bg-secondary">Panne index</span>
+                {% else %}
+                  <span class="badge bg-warning text-dark">Non vérifié</span>
+                {% endif %}
+              </td>
+              <td><small>{{ rav.commentaire|default:"—" }}</small></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" class="text-center text-muted py-4">Aucun ravitaillement ce mois</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Onglet Divers ──────────────────────────────────────── -->
+  <div class="tab-pane fade" id="tab-divers">
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Date</th><th>Catégorie</th><th>Quantité</th>
+              <th>Motif</th><th>Opérateur</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for div in divs %}
+            <tr>
+              <td>{{ div.date|date:"d/m/Y" }}</td>
+              <td class="fw-semibold">{{ div.categorie }}</td>
+              <td>{{ div.quantite|floatformat:1 }} L</td>
+              <td><small>{{ div.motif|default:"—" }}</small></td>
+              <td><small class="text-muted">{{ div.operateur.username|default:"—" }}</small></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Aucune consommation diverse ce mois</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

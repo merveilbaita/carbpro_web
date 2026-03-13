@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Engins{% endblock %}
+
+{% block content %}
+<h5 class="fw-bold mb-3" style="color:#1A3A6B">
+  <i class="bi bi-list-ul"></i> Engins actifs ({{ engins.count }})
+</h5>
+
+<div class="card border-0 shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-striped mb-0">
+      <thead>
+        <tr>
+          <th>ID Engin</th><th>Type</th><th>Description</th><th>Mode appro</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in engins %}
+        <tr>
+          <td class="fw-semibold">{{ e.id_engin }}</td>
+          <td>{{ e.get_type_engin_display }}</td>
+          <td><small>{{ e.description|default:"—" }}</small></td>
+          <td>
+            {% if e.mode_appro == "avec_index" %}
+              <span class="badge bg-primary">Avec index</span>
+            {% else %}
+              <span class="badge bg-secondary">Sans index</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-4">Aucun engin actif</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

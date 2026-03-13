@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion — CarbPro</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #1A3A6B 0%, #2e5ba8 100%);
+      min-height: 100vh; display: flex; align-items: center;
+    }
+    .login-card {
+      background: #fff; border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.2);
+      padding: 2.5rem;
+      width: min(420px, 94vw);
+      margin: auto;
+    }
+    .logo-circle {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: #1A3A6B; display: flex; align-items: center;
+      justify-content: center; margin: 0 auto 1rem;
+    }
+    .btn-login {
+      background: #1A3A6B; border: none;
+      font-size: 1.1rem; font-weight: 600;
+      padding: .75rem; border-radius: 10px;
+    }
+    .btn-login:hover { background: #2e5ba8; }
+    .form-control { border-radius: 10px; padding: .75rem 1rem; }
+    .form-control:focus { border-color: #1A3A6B; box-shadow: 0 0 0 .2rem rgba(26,58,107,.2); }
+  </style>
+</head>
+<body>
+<div class="login-card">
+  <div class="logo-circle">
+    <i class="bi bi-fuel-pump-fill text-warning fs-2"></i>
+  </div>
+  <h4 class="text-center fw-bold mb-1" style="color:#1A3A6B">CarbPro Web</h4>
+  <p class="text-center text-muted small mb-4">M.G Sarlu Construction — Gestion Carburant</p>
+
+  {% if form.errors %}
+  <div class="alert alert-danger py-2 small">
+    <i class="bi bi-exclamation-circle"></i>
+    Identifiant ou mot de passe incorrect.
+  </div>
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label fw-semibold">Identifiant</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-person"></i></span>
+        <input type="text" name="username" class="form-control"
+               placeholder="Votre identifiant" autofocus required>
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="form-label fw-semibold">Mot de passe</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+        <input type="password" name="password" class="form-control"
+               placeholder="Mot de passe" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-login btn-primary w-100 text-white">
+      <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+    </button>
+  </form>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

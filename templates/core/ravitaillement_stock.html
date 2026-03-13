@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Entrée carburant{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+
+    <!-- Stock actuel -->
+    <div class="alert {% if stock < 0 %}alert-danger{% else %}alert-success{% endif %} d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-droplet-half fs-5"></i>
+      <div>
+        <strong>Stock actuel :</strong>
+        <span class="fs-5 fw-bold ms-1">{{ stock|floatformat:0 }} L</span>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h5 class="fw-bold mb-4" style="color:#1A3A6B">
+        <i class="bi bi-truck me-2 text-primary"></i>Entrée de carburant (ravitaillement stock)
+      </h5>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          {{ form.date.label_tag }}
+          {{ form.date }}
+          {% if form.date.errors %}
+          <div class="text-danger small mt-1">{{ form.date.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-3">
+          {{ form.quantite.label_tag }}
+          <div class="input-group">
+            {{ form.quantite }}
+            <span class="input-group-text">Litres</span>
+          </div>
+          {% if form.quantite.errors %}
+          <div class="text-danger small mt-1">{{ form.quantite.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <div class="mb-4">
+          {{ form.description.label_tag }}
+          {{ form.description }}
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg">
+          <i class="bi bi-check-circle me-2"></i>Enregistrer l'entrée
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

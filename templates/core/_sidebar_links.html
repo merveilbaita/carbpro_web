@@ -1,0 +1,33 @@
+{% load static %}
+<nav class="nav flex-column mt-2">
+  <a href="{% url 'dashboard' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i> Tableau de bord
+  </a>
+  <div class="px-3 py-1 mt-2">
+    <small class="text-white-50 text-uppercase" style="font-size:.7rem;letter-spacing:1px">Saisies</small>
+  </div>
+  <a href="{% url 'ravitaillement_stock' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'ravitaillement_stock' %}active{% endif %}">
+    <i class="bi bi-truck"></i> Entrée carburant
+  </a>
+  <a href="{% url 'appro_engin' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'appro_engin' %}active{% endif %}">
+    <i class="bi bi-gear-fill"></i> Appro engin
+  </a>
+  <a href="{% url 'consommation_diverse' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'consommation_diverse' %}active{% endif %}">
+    <i class="bi bi-droplet-fill"></i> Consommation diverse
+  </a>
+  <div class="px-3 py-1 mt-2">
+    <small class="text-white-50 text-uppercase" style="font-size:.7rem;letter-spacing:1px">Données</small>
+  </div>
+  <a href="{% url 'historique' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'historique' %}active{% endif %}">
+    <i class="bi bi-clock-history"></i> Historique
+  </a>
+  <a href="{% url 'liste_engins' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'liste_engins' %}active{% endif %}">
+    <i class="bi bi-list-ul"></i> Liste engins
+  </a>
+</nav>

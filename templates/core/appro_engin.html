@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Appro Engin{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-md-9 col-lg-7">
+
+    <div class="alert {% if stock < 0 %}alert-danger{% else %}alert-success{% endif %} d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-droplet-half fs-5"></i>
+      <div>
+        <strong>Stock actuel :</strong>
+        <span class="fs-5 fw-bold ms-1">{{ stock|floatformat:0 }} L</span>
+      </div>
+    </div>
+
+    <div class="form-card">
+      <h5 class="fw-bold mb-4" style="color:#1A3A6B">
+        <i class="bi bi-gear-fill me-2 text-success"></i>Ravitaillement engin
+      </h5>
+
+      <form method="post" novalidate id="formAppro">
+        {% csrf_token %}
+
+        <!-- Date -->
+        <div class="mb-3">
+          {{ form.date.label_tag }}
+          {{ form.date }}
+          {% if form.date.errors %}
+          <div class="text-danger small mt-1">{{ form.date.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Engin -->
+        <div class="mb-3">
+          {{ form.engin.label_tag }}
+          {{ form.engin }}
+          {% if form.engin.errors %}
+          <div class="text-danger small mt-1">{{ form.engin.errors.0 }}</div>
+          {% endif %}
+          <div id="engin-info" class="mt-1 small text-muted"></div>
+        </div>
+
+        <!-- Cases à cocher -->
+        <div class="mb-3 d-flex gap-4 flex-wrap">
+          <div class="form-check" id="bloc-premier-plein">
+            {{ form.premier_plein }}
+            <label class="form-check-label" for="{{ form.premier_plein.id_for_label }}">
+              {{ form.premier_plein.label }}
+            </label>
+          </div>
+          <div class="form-check">
+            {{ form.panne_index }}
+            <label class="form-check-label" for="{{ form.panne_index.id_for_label }}">
+              {{ form.panne_index.label }}
+            </label>
+          </div>
+        </div>
+
+        <!-- Bloc index (visible si avec_index + pas panne + pas premier plein) -->
+        <div id="bloc-index">
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              {{ form.index_precedent.label_tag }}
+              {{ form.index_precedent }}
+              {% if form.index_precedent.errors %}
+              <div class="text-danger small mt-1">{{ form.index_precedent.errors.0 }}</div>
+              {% endif %}
+            </div>
+            <div class="col-6">
+              {{ form.index_actuel.label_tag }}
+              {{ form.index_actuel }}
+              {% if form.index_actuel.errors %}
+              <div class="text-danger small mt-1">{{ form.index_actuel.errors.0 }}</div>
+              {% endif %}
+            </div>
+          </div>
+          <div id="diff-info" class="alert alert-light py-2 small mb-3" style="display:none">
+            Différence d'index : <strong id="diff-val">—</strong>
+          </div>
+        </div>
+
+        <!-- Quantité -->
+        <div class="mb-3">
+          {{ form.qte_donnee.label_tag }}
+          <div class="input-group">
+            {{ form.qte_donnee }}
+            <span class="input-group-text">L</span>
+          </div>
+          {% if form.qte_donnee.errors %}
+          <div class="text-danger small mt-1">{{ form.qte_donnee.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Commentaire -->
+        <div class="mb-4">
+          {{ form.commentaire.label_tag }}
+          {{ form.commentaire }}
+          {% if form.commentaire.errors %}
+          <div class="text-danger small mt-1">{{ form.commentaire.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-success w-100 btn-lg">
+          <i class="bi bi-check-circle me-2"></i>Enregistrer le ravitaillement
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const ENGINS = {{ engins_data|safe }};
+
+const selEngin      = document.getElementById("id_engin");
+const blocIndex     = document.getElementById("bloc-index");
+const blocPremier   = document.getElementById("bloc-premier-plein");
+const cbPanne       = document.getElementById("id_panne_index");
+const cbPremier     = document.getElementById("id_premier_plein");
+const infoDiv       = document.getElementById("engin-info");
+const fldPrecIdx    = document.getElementById("id_index_precedent");
+const fldActIdx     = document.getElementById("id_index_actuel");
+const diffInfo      = document.getElementById("diff-info");
+const diffVal       = document.getElementById("diff-val");
+
+function updateForm() {
+  const enginId = selEngin.value;
+  const data    = ENGINS[enginId];
+
+  if (!data) {
+    blocIndex.style.display   = "none";
+    blocPremier.style.display = "none";
+    infoDiv.textContent       = "";
+    return;
+  }
+
+  const avecIndex = data.mode === "avec_index";
+  const panne     = cbPanne.checked;
+  const premier   = cbPremier.checked;
+
+  // Info engin
+  const modeLabel = avecIndex ? "Suivi d'index activé" : "Sans suivi d'index";
+  infoDiv.innerHTML = `<i class="bi bi-info-circle"></i> ${modeLabel}
+    — Dernier index : <strong>${data.dernier_index}</strong>`;
+
+  // Affichage bloc index
+  if (avecIndex && !panne && !premier) {
+    blocIndex.style.display = "block";
+    if (!fldPrecIdx.value && data.dernier_index > 0) {
+      fldPrecIdx.value = data.dernier_index;
+    }
+  } else {
+    blocIndex.style.display = "none";
+  }
+
+  // Bloc premier plein visible seulement en mode avec_index
+  blocPremier.style.display = avecIndex ? "block" : "none";
+}
+
+function updateDiff() {
+  const prec = parseFloat(fldPrecIdx.value) || 0;
+  const act  = parseFloat(fldActIdx.value)  || 0;
+  if (act > 0 && prec >= 0) {
+    diffInfo.style.display = "block";
+    diffVal.textContent    = (act - prec).toFixed(1);
+  } else {
+    diffInfo.style.display = "none";
+  }
+}
+
+selEngin.addEventListener("change", updateForm);
+cbPanne.addEventListener("change",  updateForm);
+cbPremier.addEventListener("change", updateForm);
+fldPrecIdx.addEventListener("input", updateDiff);
+fldActIdx.addEventListener("input",  updateDiff);
+
+// Init au chargement
+updateForm();
+</script>
+{% endblock %}

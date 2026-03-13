@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <h5 class="fw-bold mb-0" style="color:#1A3A6B">
+      <i class="bi bi-speedometer2"></i> Tableau de bord
+    </h5>
+    <small class="text-muted">{{ mois_label }}</small>
+  </div>
+  <a href="{% url 'ravitaillement_stock' %}" class="btn btn-success btn-sm">
+    <i class="bi bi-plus-circle"></i> Nouvelle entrée
+  </a>
+</div>
+
+<!-- ── Bannière stock négatif ─────────────────────────────── -->
+{% if stock_negatif %}
+<div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div>
+    <strong>Stock négatif — débit fournisseur en attente</strong><br>
+    <small>Une facture de régularisation est nécessaire.</small>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── KPI Cards ──────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+
+  <!-- Stock actuel -->
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card card h-100 p-3
+      {% if stock_negatif %}border-danger bg-danger bg-opacity-10
+      {% else %}border-success bg-success bg-opacity-10{% endif %}">
+      <div class="text-muted small mb-1">
+        <i class="bi bi-droplet-half"></i> Stock actuel
+      </div>
+      <div class="kpi-val {% if stock_negatif %}text-danger{% else %}text-success{% endif %}">
+        {{ stock|floatformat:0 }} L
+      </div>
+    </div>
+  </div>
+
+  <!-- Entrées mois -->
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card card h-100 p-3 bg-primary bg-opacity-10 border-primary">
+      <div class="text-muted small mb-1">
+        <i class="bi bi-arrow-down-circle"></i> Entrées ce mois
+      </div>
+      <div class="kpi-val text-primary">{{ entrees_mois|floatformat:0 }} L</div>
+    </div>
+  </div>
+
+  <!-- Sorties mois -->
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card card h-100 p-3 bg-warning bg-opacity-10 border-warning">
+      <div class="text-muted small mb-1">
+        <i class="bi bi-arrow-up-circle"></i> Sorties ce mois
+      </div>
+      <div class="kpi-val text-warning">{{ sorties_mois|floatformat:0 }} L</div>
+    </div>
+  </div>
+
+  <!-- Engins actifs -->
+  <div class="col-6 col-lg-3">
+    <div class="kpi-card card h-100 p-3 bg-secondary bg-opacity-10 border-secondary">
+      <div class="text-muted small mb-1">
+        <i class="bi bi-truck"></i> Engins actifs
+      </div>
+      <div class="kpi-val text-secondary">{{ nb_engins }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Accès rapides ──────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <h6 class="fw-bold text-muted text-uppercase small mb-2">Saisie rapide</h6>
+  </div>
+  <div class="col-4 col-md-3">
+    <a href="{% url 'ravitaillement_stock' %}"
+       class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-3 gap-1">
+      <i class="bi bi-truck fs-4"></i>
+      <span class="small fw-semibold">Entrée stock</span>
+    </a>
+  </div>
+  <div class="col-4 col-md-3">
+    <a href="{% url 'appro_engin' %}"
+       class="btn btn-outline-success w-100 d-flex flex-column align-items-center py-3 gap-1">
+      <i class="bi bi-gear-fill fs-4"></i>
+      <span class="small fw-semibold">Appro engin</span>
+    </a>
+  </div>
+  <div class="col-4 col-md-3">
+    <a href="{% url 'consommation_diverse' %}"
+       class="btn btn-outline-warning w-100 d-flex flex-column align-items-center py-3 gap-1">
+      <i class="bi bi-droplet-fill fs-4"></i>
+      <span class="small fw-semibold">Divers</span>
+    </a>
+  </div>
+</div>
+
+<!-- ── Dernières opérations ───────────────────────────────── -->
+<div class="row g-3">
+  <!-- Entrées stock -->
+  <div class="col-12 col-xl-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold border-bottom py-3">
+        <i class="bi bi-arrow-down-circle text-primary"></i> Dernières entrées stock
+      </div>
+      <div class="card-body p-0">
+        {% if dernieres_ops %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr>
+              <th>Date</th><th>Quantité</th><th>Opérateur</th>
+            </tr></thead>
+            <tbody>
+              {% for op in dernieres_ops %}
+              <tr>
+                <td>{{ op.date|date:"d/m/Y" }}</td>
+                <td class="fw-semibold text-success">{{ op.quantite|floatformat:0 }} L</td>
+                <td><small class="text-muted">{{ op.operateur.username|default:"—" }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted p-3 mb-0 text-center small">Aucune entrée enregistrée</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Derniers ravitaillements engins -->
+  <div class="col-12 col-xl-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold border-bottom py-3">
+        <i class="bi bi-gear-fill text-success"></i> Derniers ravitaillements engins
+      </div>
+      <div class="card-body p-0">
+        {% if derniers_ravs %}
+        <div class="table-responsive">
+          <table class="table table-sm table-striped mb-0">
+            <thead><tr>
+              <th>Date</th><th>Engin</th><th>Qté</th><th>Statut</th>
+            </tr></thead>
+            <tbody>
+              {% for rav in derniers_ravs %}
+              <tr>
+                <td>{{ rav.date|date:"d/m/Y" }}</td>
+                <td class="fw-semibold">{{ rav.engin.id_engin }}</td>
+                <td>{{ rav.qte_donnee|floatformat:0 }} L</td>
+                <td>
+                  {% if rav.statut == "normal" %}
+                    <span class="badge bg-success">Normal</span>
+                  {% elif rav.statut == "anomalie" %}
+                    <span class="badge bg-danger">Anomalie</span>
+                  {% elif rav.statut == "panne_index" %}
+                    <span class="badge bg-secondary">Panne index</span>
+                  {% else %}
+                    <span class="badge bg-warning text-dark">Non vérifié</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <p class="text-muted p-3 mb-0 text-center small">Aucun ravitaillement enregistré</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
