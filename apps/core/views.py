@@ -278,75 +278,114 @@ def export_excel(request):
 
     wb = openpyxl.Workbook()
 
-    # ── Feuille Entrées ───────────────────────────────────────
-    ws_e = wb.active
-    ws_e.title = "Entrées Stock"
-    en_tete = ["Date", "Quantité (L)", "Description", "Opérateur"]
-    ws_e.append(en_tete)
-    for cell in ws_e[1]:
+    BLEU   = "1A3A6B"
+    JAUNE  = "FFC000"
+
+    # ── Feuille 1 : Synthèse entrées (lue par l'import desktop) ──
+    # L'import desktop cherche les feuilles contenant "synth"
+    # et lit : col 0=?, col 1=date, col 2=quantite
+    ws_s = wb.active
+    ws_s.title = "Synthèse"
+
+    ws_s.append(["", "Date", "Quantité (L)", "Description", "Opérateur"])
+    for cell in ws_s[1]:
         cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1A3A6B")
+        cell.fill = PatternFill("solid", fgColor=BLEU)
         cell.alignment = Alignment(horizontal="center")
 
     for op in OperationStock.objects.filter(
-            type="entree", date__month=mois, date__year=annee
+        type="entree", date__month=mois, date__year=annee
     ).order_by("date"):
-        ws_e.append([
-            op.date.strftime("%d/%m/%Y"),
-            op.quantite,
+        ws_s.append([
+            "",
+            op.date,          # col index 1 — datetime lu par l'import
+            op.quantite,      # col index 2 — quantite
             op.description,
-            op.operateur.get_full_name() or op.operateur.username if op.operateur else "",
+            op.operateur.username if op.operateur else "",
         ])
+        # Formater la cellule date comme datetime pour que openpyxl la reconnaisse
+        ws_s.cell(row=ws_s.max_row, column=2).number_format = "DD/MM/YYYY"
 
-    # ── Feuille Ravitaillements Engins ────────────────────────
-    ws_r = wb.create_sheet("Appro Engins")
-    en_tete_r = ["Date","Engin","Index Préc.","Index Act.","Différence",
-                  "Qté (L)","Taux Réel","Norme Réf","Statut","Commentaire","Opérateur"]
-    ws_r.append(en_tete_r)
-    for cell in ws_r[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1A3A6B")
+    # ── Feuille 2 : Rapport journalier (lue par l'import desktop) ─
+    # Structure attendue (min_row=12, index base 0) :
+    # col 1 = date, col 4 = type_excel, col 5 = id_engin,
+    # col 6 = index_prec, col 7 = index_act, col 8 = qte, col 9 = obs
+    ws_r = wb.create_sheet("Rapport journalier")
 
+    # Lignes 1-11 : en-tête (l'import commence à row 12)
+    ws_r.append(["RAPPORT JOURNALIER — Export CarbPro Web"])
+    for _ in range(10):
+        ws_r.append([])  # lignes vides jusqu'à row 11
+
+    # Ligne 12 : en-tête colonnes
+    header = ["", "Date", "", "", "Type", "ID Engin",
+              "Index Préc.", "Index Act.", "Quantité (L)", "Observations"]
+    ws_r.append(header)
+    for cell in ws_r[12]:
+        if cell.value:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor=BLEU)
+            cell.alignment = Alignment(horizontal="center")
+
+    # Type mapping inverse : type_interne → type_excel pour l'import
+    TYPE_EXCEL_MAP = {
+        "camion_benne":    "CAMION BENNE",
+        "excavatrice":     "EXCAVATRICE",
+        "chargeur":        "CHARGEUR",
+        "bulldozer":       "BULLDOZER",
+        "niveleuse":       "NIVELEUSE",
+        "compacteur":      "COMPACTEUR",
+        "vehicule":        "LAND CR. DIR",
+        "equipement_fixe": "WATER TANK",
+        "autre":           "PORTE-CHAR",
+    }
+
+    # Ravitaillements engins
     for rav in RavitaillementEngin.objects.filter(
-            date__month=mois, date__year=annee
-    ).select_related("engin","operateur").order_by("date"):
-        ws_r.append([
-            rav.date.strftime("%d/%m/%Y"),
-            rav.engin.id_engin,
-            rav.index_precedent,
-            rav.index_actuel,
-            rav.difference_index,
-            rav.qte_donnee,
-            rav.taux_reel,
-            rav.norme_ref,
-            rav.statut,
-            rav.commentaire,
-            rav.operateur.username if rav.operateur else "",
-        ])
+        date__month=mois, date__year=annee
+    ).select_related("engin").order_by("date"):
+        type_excel = TYPE_EXCEL_MAP.get(rav.engin.type_engin, rav.engin.type_engin.upper())
+        idx_prec   = rav.index_precedent if rav.engin.mode_appro == "avec_index" else ""
+        idx_act    = rav.index_actuel    if rav.engin.mode_appro == "avec_index" else ""
+        if rav.statut == "panne_index":
+            idx_prec = "Panne"
+            idx_act  = "Panne"
+        row = ["", rav.date, "", "", type_excel, rav.engin.id_engin,
+               idx_prec, idx_act, rav.qte_donnee, rav.commentaire or ""]
+        ws_r.append(row)
+        ws_r.cell(row=ws_r.max_row, column=2).number_format = "DD/MM/YYYY"
 
-    # ── Feuille Consommations Diverses ────────────────────────
-    ws_d = wb.create_sheet("Consommations Diverses")
-    ws_d.append(["Date","Catégorie","Quantité (L)","Motif","Opérateur"])
-    for cell in ws_d[1]:
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = PatternFill("solid", fgColor="1A3A6B")
-
+    # Consommations diverses — mappées vers les types diverses attendus
+    CAT_EXCEL_MAP = {
+        "Garage":                 "GARAGE",
+        "Groupe électrogène":     "GROUPE ELEC",
+        "Bidon":                  "BIDON",
+        "Fuel Tank":              "FUEL TANK",
+        "Land Cruiser Direction": "LAND CR. DIR",
+        "Autre":                  "AUTRES",
+    }
     for div in ConsommationDiverse.objects.filter(
-            date__month=mois, date__year=annee
-    ).select_related("operateur").order_by("date"):
-        ws_d.append([
-            div.date.strftime("%d/%m/%Y"),
-            div.categorie,
-            div.quantite,
-            div.motif,
-            div.operateur.username if div.operateur else "",
-        ])
+        date__month=mois, date__year=annee
+    ).order_by("date"):
+        type_excel = CAT_EXCEL_MAP.get(div.categorie, "AUTRES")
+        row = ["", div.date, "", "", type_excel, "",
+               "", "", div.quantite, div.motif or ""]
+        ws_r.append(row)
+        ws_r.cell(row=ws_r.max_row, column=2).number_format = "DD/MM/YYYY"
 
-    # Ajuster largeurs colonnes
-    for ws in [ws_e, ws_r, ws_d]:
+    # ── Feuille 3 : Résumé lisible (pour consultation) ───────────
+    ws_info = wb.create_sheet("Résumé Web")
+    ws_info.append(["Export CarbPro Web",
+                    f"Période : {mois}/{annee}",
+                    f"Généré le {date.today().strftime('%d/%m/%Y')}"])
+    ws_info.append([])
+    ws_info.append(["Ce fichier est compatible avec l'import de GestionCarburantPro Desktop"])
+
+    # Ajuster largeurs
+    for ws in [ws_s, ws_r]:
         for col in ws.columns:
             max_len = max((len(str(c.value or "")) for c in col), default=10)
-            ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 40)
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 35)
 
     response = HttpResponse(
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
