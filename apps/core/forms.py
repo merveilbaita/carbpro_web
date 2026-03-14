@@ -325,3 +325,54 @@ class ConsommationDiverseForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields["date"].initial = timezone.localdate()
         self.fields["motif"].required = False
+
+
+# ── Formulaire Engin ──────────────────────────────────────────
+
+class EnginForm(forms.ModelForm):
+    class Meta:
+        model  = Engin
+        fields = ["id_engin", "type_engin", "description", "mode_appro", "actif"]
+        widgets = {
+            "id_engin": forms.TextInput(attrs={
+                "class": "form-control form-control-lg",
+                "placeholder": "Ex: CAT01, MG15, LC001",
+                "style": "text-transform:uppercase",
+            }),
+            "type_engin": forms.Select(attrs={
+                "class": "form-select form-select-lg",
+                "id": "id_type_engin",
+            }),
+            "description": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "Ex: Excavatrice CAT 320D",
+            }),
+            "mode_appro": forms.Select(attrs={
+                "class": "form-select form-select-lg",
+            }),
+            "actif": forms.CheckboxInput(attrs={
+                "class": "form-check-input",
+            }),
+        }
+        labels = {
+            "id_engin":    "Identifiant *",
+            "type_engin":  "Type d'engin *",
+            "description": "Description",
+            "mode_appro":  "Mode d'approvisionnement *",
+            "actif":       "Engin actif",
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.is_edit = kwargs.pop("is_edit", False)
+        super().__init__(*args, **kwargs)
+        self.fields["description"].required = False
+        if self.is_edit:
+            # En modification, l'ID ne peut pas être changé
+            self.fields["id_engin"].widget.attrs["readonly"] = True
+            self.fields["id_engin"].widget.attrs["class"] += " bg-light"
+
+    def clean_id_engin(self):
+        val = self.cleaned_data["id_engin"].strip().upper()
+        if not self.is_edit and Engin.objects.filter(id_engin=val).exists():
+            raise forms.ValidationError("Cet identifiant existe déjà.")
+        return val

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Supprimer {{ engin.id_engin }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card border-danger border-2 shadow-sm">
+      <div class="card-header bg-danger text-white fw-bold">
+        <i class="bi bi-exclamation-triangle-fill"></i> Confirmer la suppression
+      </div>
+      <div class="card-body text-center py-4">
+        <div class="rounded-circle d-inline-flex align-items-center justify-content-center
+                    fw-bold text-white mb-3"
+             style="width:64px;height:64px;font-size:1.1rem;background:#1A3A6B">
+          {{ engin.id_engin }}
+        </div>
+        <h5 class="fw-bold">{{ engin.id_engin }}</h5>
+        <p class="text-muted mb-1">{{ engin.get_type_engin_display }}</p>
+        <p class="text-muted small mb-4">{{ engin.description|default:"" }}</p>
+
+        {% if nb_ravs > 0 %}
+        <div class="alert alert-danger text-start small mb-3">
+          <i class="bi bi-exclamation-circle"></i>
+          Cet engin a <strong>{{ nb_ravs }} ravitaillement(s)</strong> enregistré(s).
+          Ils seront <strong>définitivement supprimés</strong> avec l'engin.
+          Les sorties stock correspondantes seront aussi supprimées.
+        </div>
+        {% endif %}
+
+        <div class="alert alert-warning text-start small">
+          <i class="bi bi-info-circle"></i>
+          Conseil : préférez <strong>désactiver</strong> l'engin plutôt que le supprimer
+          pour conserver l'historique.
+        </div>
+
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <a href="{% url 'gestion_engins' %}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle"></i> Annuler
+          </a>
+          <form method="post" action="{% url 'toggle_engin' engin.id_engin %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-warning btn-lg">
+              <i class="bi bi-pause-circle"></i> Désactiver seulement
+            </button>
+          </form>
+          <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-lg">
+              <i class="bi bi-trash"></i> Supprimer
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

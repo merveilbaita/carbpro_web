@@ -762,3 +762,106 @@ def push_unsubscribe(request):
         return JsonResponse({"status": "Désabonné"})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+
+# ── Gestion Engins (CRUD) ─────────────────────────────────────
+
+@login_required
+def gestion_engins(request):
+    engins_actifs   = Engin.objects.filter(actif=True).order_by("id_engin")
+    engins_inactifs = Engin.objects.filter(actif=False).order_by("id_engin")
+
+    # Stats par engin
+    from django.db.models import Count, Sum as DSum
+    stats = {}
+    for e in Engin.objects.all():
+        stats[e.id_engin] = {
+            "nb_ravs":    RavitaillementEngin.objects.filter(engin=e).count(),
+            "total_litres": RavitaillementEngin.objects.filter(engin=e).aggregate(
+                t=DSum("qte_donnee"))["t"] or 0,
+        }
+
+    ctx = {
+        "engins_actifs":   engins_actifs,
+        "engins_inactifs": engins_inactifs,
+        "stats":           stats,
+        "total_actifs":    engins_actifs.count(),
+        "total_inactifs":  engins_inactifs.count(),
+    }
+    return render(request, "core/engins/liste.html", ctx)
+
+
+@admin_required
+def creer_engin(request):
+    if request.method == "POST":
+        from .forms import EnginForm
+        form = EnginForm(request.POST)
+        if form.is_valid():
+            engin = form.save()
+            messages.success(request,
+                f"✅ Engin '{engin.id_engin}' créé avec succès.")
+            return redirect("gestion_engins")
+    else:
+        from .forms import EnginForm
+        form = EnginForm()
+
+    return render(request, "core/engins/form.html", {
+        "form":  form,
+        "titre": "Ajouter un engin",
+        "mode":  "creation",
+    })
+
+
+@admin_required
+def modifier_engin(request, id_engin):
+    engin = get_object_or_404(Engin, id_engin=id_engin)
+
+    if request.method == "POST":
+        from .forms import EnginForm
+        form = EnginForm(request.POST, instance=engin, is_edit=True)
+        if form.is_valid():
+            form.save()
+            messages.success(request,
+                f"✅ Engin '{engin.id_engin}' mis à jour.")
+            return redirect("gestion_engins")
+    else:
+        from .forms import EnginForm
+        form = EnginForm(instance=engin, is_edit=True)
+
+    return render(request, "core/engins/form.html", {
+        "form":  form,
+        "titre": f"Modifier — {engin.id_engin}",
+        "mode":  "modification",
+        "engin": engin,
+    })
+
+
+@admin_required
+def toggle_engin(request, id_engin):
+    engin = get_object_or_404(Engin, id_engin=id_engin)
+    engin.actif = not engin.actif
+    engin.save()
+    etat = "activé" if engin.actif else "désactivé"
+    messages.success(request, f"✅ Engin '{engin.id_engin}' {etat}.")
+    return redirect("gestion_engins")
+
+
+@admin_required
+def supprimer_engin(request, id_engin):
+    engin = get_object_or_404(Engin, id_engin=id_engin)
+    nb_ravs = RavitaillementEngin.objects.filter(engin=engin).count()
+
+    if request.method == "POST":
+        # Supprimer les sorties stock liées
+        OperationStock.objects.filter(
+            description__icontains=f"Appro {engin.id_engin}"
+        ).delete()
+        engin.delete()
+        messages.success(request,
+            f"✅ Engin '{id_engin}' supprimé ({nb_ravs} ravitaillements supprimés).")
+        return redirect("gestion_engins")
+
+    return render(request, "core/engins/confirmer_suppression.html", {
+        "engin":   engin,
+        "nb_ravs": nb_ravs,
+    })

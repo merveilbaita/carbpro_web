@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ titre }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'gestion_engins' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="form-card">
+      <h5 class="fw-bold mb-4" style="color:#1A3A6B">
+        <i class="bi bi-truck me-2"></i>{{ titre }}
+      </h5>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        <!-- ID Engin -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.id_engin.label }}</label>
+          {{ form.id_engin }}
+          {% if form.id_engin.errors %}
+          <div class="text-danger small mt-1">{{ form.id_engin.errors.0 }}</div>
+          {% endif %}
+          {% if mode == "creation" %}
+          <div class="form-text">Identifiant unique, ex: CAT01, MG15, LC001</div>
+          {% else %}
+          <div class="form-text text-warning">
+            <i class="bi bi-lock"></i> L'identifiant ne peut pas être modifié
+          </div>
+          {% endif %}
+        </div>
+
+        <!-- Type engin -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.type_engin.label }}</label>
+          {{ form.type_engin }}
+          {% if form.type_engin.errors %}
+          <div class="text-danger small mt-1">{{ form.type_engin.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Description -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.description.label }}</label>
+          {{ form.description }}
+        </div>
+
+        <!-- Mode appro -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.mode_appro.label }}</label>
+          {{ form.mode_appro }}
+          <div class="form-text" id="mode-info"></div>
+        </div>
+
+        <!-- Actif -->
+        <div class="mb-4 form-check">
+          {{ form.actif }}
+          <label class="form-check-label fw-semibold" for="{{ form.actif.id_for_label }}">
+            {{ form.actif.label }}
+          </label>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg">
+          <i class="bi bi-check-circle me-2"></i>
+          {% if mode == "creation" %}Créer l'engin{% else %}Enregistrer{% endif %}
+        </button>
+      </form>
+    </div>
+
+    <!-- Info normes -->
+    <div id="normes-info" class="card border-0 shadow-sm mt-3" style="display:none">
+      <div class="card-header fw-semibold" style="background:#1A3A6B;color:white">
+        <i class="bi bi-info-circle"></i> Norme de consommation
+      </div>
+      <div class="card-body" id="normes-body"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const NORMES = {
+  camion_benne:    { mode: "avec_index", unite: "km",  norme: "2.0 km/L (min 1.9)" },
+  excavatrice:     { mode: "avec_index", unite: "h",   norme: "25 L/h" },
+  chargeur:        { mode: "avec_index", unite: "h",   norme: "20 L/h" },
+  bulldozer:       { mode: "avec_index", unite: "h",   norme: "27 L/h" },
+  niveleuse:       { mode: "avec_index", unite: "h",   norme: "14 L/h" },
+  compacteur:      { mode: "avec_index", unite: "h",   norme: "12 L/h" },
+  vehicule:        { mode: "sans_index", unite: null,  norme: null },
+  equipement_fixe: { mode: "sans_index", unite: null,  norme: null },
+  autre:           { mode: "sans_index", unite: null,  norme: null },
+};
+
+const selType  = document.getElementById('id_type_engin');
+const selMode  = document.getElementById('id_mode_appro');
+const modeInfo = document.getElementById('mode-info');
+const normesDiv  = document.getElementById('normes-info');
+const normesBody = document.getElementById('normes-body');
+
+function updateInfo() {
+  const type = selType ? selType.value : '';
+  const info = NORMES[type];
+  if (!info) { normesDiv.style.display = 'none'; return; }
+
+  // Suggérer le mode appro
+  if (selMode && info.mode) {
+    selMode.value = info.mode;
+    modeInfo.textContent = info.mode === 'avec_index'
+      ? 'Suivi km ou heures recommandé pour ce type'
+      : 'Ravitaillement direct sans suivi d\'index';
+  }
+
+  // Afficher la norme
+  if (info.norme) {
+    normesDiv.style.display = 'block';
+    normesBody.innerHTML = `
+      <div class="d-flex align-items-center gap-3">
+        <div class="text-center p-3 rounded bg-primary bg-opacity-10">
+          <div class="fw-bold fs-4 text-primary">${info.norme}</div>
+          <div class="small text-muted">Consommation de référence</div>
+        </div>
+        <div class="small text-muted">
+          Les ravitaillements seront analysés par rapport à cette norme.
+          Une anomalie sera signalée si la consommation s'en écarte significativement.
+        </div>
+      </div>`;
+  } else {
+    normesDiv.style.display = 'none';
+  }
+}
+
+if (selType) {
+  selType.addEventListener('change', updateInfo);
+  updateInfo();
+}
+</script>
+{% endblock %}

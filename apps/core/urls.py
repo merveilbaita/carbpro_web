@@ -9,7 +9,6 @@ urlpatterns = [
     path("historique/",           views.historique,            name="historique"),
     path("export-excel/",         views.export_excel,          name="export_excel"),
     path("import-excel/",         views.import_excel,          name="import_excel"),
-    path("engins/",               views.liste_engins,          name="liste_engins"),
     # PWA
     path("sw.js",                 views.service_worker,        name="service_worker"),
     path("offline/",              views.offline,               name="offline"),
@@ -19,6 +18,12 @@ urlpatterns = [
     path("utilisateurs/<int:user_id>/modifier/",   views.modifier_utilisateur, name="modifier_utilisateur"),
     path("utilisateurs/<int:user_id>/toggle/",     views.toggle_utilisateur,   name="toggle_utilisateur"),
     path("utilisateurs/<int:user_id>/supprimer/",  views.supprimer_utilisateur,name="supprimer_utilisateur"),
+    # Gestion engins
+    path("engins/",                          views.gestion_engins,   name="gestion_engins"),
+    path("engins/creer/",                    views.creer_engin,      name="creer_engin"),
+    path("engins/<str:id_engin>/modifier/",  views.modifier_engin,   name="modifier_engin"),
+    path("engins/<str:id_engin>/toggle/",    views.toggle_engin,     name="toggle_engin"),
+    path("engins/<str:id_engin>/supprimer/", views.supprimer_engin,  name="supprimer_engin"),
     # Web Push Notifications
     path("push/vapid-public-key/", views.push_vapid_public_key, name="push_vapid_public_key"),
     path("push/subscribe/",        views.push_subscribe,        name="push_subscribe"),

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block title %}Gestion Engins{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <h5 class="fw-bold mb-0" style="color:#1A3A6B">
+    <i class="bi bi-truck"></i> Gestion des engins
+  </h5>
+  {% if request.user.profile.role == "administrateur" or request.user.is_superuser %}
+  <a href="{% url 'creer_engin' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Ajouter un engin
+  </a>
+  {% endif %}
+</div>
+
+<!-- KPI -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="kpi-card card p-3 text-center bg-success bg-opacity-10 border-success">
+      <div class="kpi-val text-success">{{ total_actifs }}</div>
+      <div class="small text-muted">Actifs</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card card p-3 text-center bg-secondary bg-opacity-10 border-secondary">
+      <div class="kpi-val text-secondary">{{ total_inactifs }}</div>
+      <div class="small text-muted">Inactifs</div>
+    </div>
+  </div>
+</div>
+
+<!-- Engins actifs -->
+<h6 class="fw-bold text-muted text-uppercase small mb-2">
+  <i class="bi bi-check-circle-fill text-success"></i> Engins actifs
+</h6>
+<div class="row g-3 mb-4">
+  {% for engin in engins_actifs %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between mb-2">
+          <div>
+            <span class="badge mb-1" style="background:#1A3A6B;font-size:.85rem">
+              {{ engin.id_engin }}
+            </span>
+            <div class="fw-bold">{{ engin.get_type_engin_display }}</div>
+            <small class="text-muted">{{ engin.description|default:"—" }}</small>
+          </div>
+          <span class="badge {% if engin.mode_appro == 'avec_index' %}bg-primary{% else %}bg-secondary{% endif %}">
+            {% if engin.mode_appro == "avec_index" %}
+              <i class="bi bi-speedometer2"></i> Index
+            {% else %}
+              <i class="bi bi-dash-circle"></i> Sans index
+            {% endif %}
+          </span>
+        </div>
+
+        <!-- Stats -->
+        <div class="d-flex gap-3 mb-3 small text-muted">
+          <span><i class="bi bi-arrow-repeat"></i> {{ stats|get_item:engin.id_engin|get_key:"nb_ravs"|default:"0" }} ravit.</span>
+          <span><i class="bi bi-droplet"></i> {{ stats|get_item:engin.id_engin|get_key:"total_litres"|default:"0"|floatformat:0 }} L total</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="d-flex gap-2 flex-wrap">
+          {% if request.user.profile.role == "administrateur" or request.user.is_superuser %}
+          <a href="{% url 'modifier_engin' engin.id_engin %}"
+             class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-pencil"></i> Modifier
+          </a>
+          <form method="post" action="{% url 'toggle_engin' engin.id_engin %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-warning">
+              <i class="bi bi-pause-circle"></i> Désactiver
+            </button>
+          </form>
+          <a href="{% url 'supprimer_engin' engin.id_engin %}"
+             class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="alert alert-info">
+      Aucun engin actif. <a href="{% url 'creer_engin' %}">Ajouter un engin</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Engins inactifs -->
+{% if engins_inactifs %}
+<h6 class="fw-bold text-muted text-uppercase small mb-2">
+  <i class="bi bi-pause-circle-fill text-secondary"></i> Engins inactifs
+</h6>
+<div class="row g-3">
+  {% for engin in engins_inactifs %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card border-0 shadow-sm h-100 opacity-75">
+      <div class="card-body">
+        <div class="d-flex align-items-start justify-content-between mb-2">
+          <div>
+            <span class="badge bg-secondary mb-1">{{ engin.id_engin }}</span>
+            <div class="fw-bold text-muted">{{ engin.get_type_engin_display }}</div>
+            <small class="text-muted">{{ engin.description|default:"—" }}</small>
+          </div>
+          <span class="badge bg-secondary">Inactif</span>
+        </div>
+        {% if request.user.profile.role == "administrateur" or request.user.is_superuser %}
+        <div class="d-flex gap-2">
+          <form method="post" action="{% url 'toggle_engin' engin.id_engin %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-success">
+              <i class="bi bi-play-circle"></i> Réactiver
+            </button>
+          </form>
+          <a href="{% url 'supprimer_engin' engin.id_engin %}"
+             class="btn btn-sm btn-outline-danger">
+            <i class="bi bi-trash"></i>
+          </a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Filtre recherche rapide
+document.addEventListener('DOMContentLoaded', function() {
+  const search = document.getElementById('search-engin');
+  if (!search) return;
+  search.addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('.engin-card').forEach(function(card) {
+      card.closest('.col-12').style.display =
+        card.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+});
+</script>
+{% endblock %}

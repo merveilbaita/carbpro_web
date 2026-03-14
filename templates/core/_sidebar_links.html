@@ -39,8 +39,8 @@
     <i class="bi bi-people-fill"></i> Utilisateurs
   </a>
   {% endif %}
-  <a href="{% url 'liste_engins' %}"
-     class="nav-link {% if request.resolver_match.url_name == 'liste_engins' %}active{% endif %}">
-    <i class="bi bi-list-ul"></i> Liste engins
+  <a href="{% url 'gestion_engins' %}"
+     class="nav-link {% if 'engin' in request.resolver_match.url_name %}active{% endif %}">
+    <i class="bi bi-truck"></i> Engins
   </a>
 </nav>
