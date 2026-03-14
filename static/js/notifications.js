@@ -1,5 +1,6 @@
 /**
- * CarbPro — Gestion des notifications push
+ * CarbPro — Notifications Push
+ * NB: l'installation PWA est gérée par pwa.js — pas de deferredInstallPrompt ici
  */
 
 function urlBase64ToUint8Array(base64String) {
@@ -26,18 +27,17 @@ async function initNotifications() {
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
                 (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                       window.navigator.standalone === true;
+                       (window.navigator.standalone === true);
 
   if (isIOS && !isStandalone) {
     const btn  = document.getElementById('notif-btn');
     const icon = document.getElementById('notif-icon');
     if (btn) {
       btn.style.display = 'flex';
-      btn.title = "Installe l'app sur l'écran d'accueil pour les notifications";
-      btn.onclick = () => showPushToast(
-        "📲 iPhone : Partager ⬆️ → Sur l'écran d'accueil → puis ouvre l'app depuis l'icône.",
-        'warning'
-      );
+      btn.title   = "Installe l'app sur l'ecran d'accueil pour les notifications";
+      btn.onclick = function() {
+        showPushToast("iPhone : Partager puis Sur l'ecran d'accueil, puis ouvre l'app depuis l'icone.", 'warning');
+      };
     }
     if (icon) icon.className = 'bi bi-bell-slash text-warning';
     return;
@@ -55,15 +55,16 @@ async function subscribePush() {
   try {
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      showPushToast('❌ Permission refusée — notifications désactivées.', 'warning');
+      showPushToast('Permission refusee — notifications desactivees.', 'warning');
       return;
     }
 
     const resp = await fetch('/push/vapid-public-key/');
-    const { publicKey } = await resp.json();
+    const json = await resp.json();
+    const publicKey = json.publicKey;
 
     if (!publicKey) {
-      showPushToast('⚠️ Clés VAPID non configurées.', 'warning');
+      showPushToast('Cles VAPID non configurees.', 'warning');
       return;
     }
 
@@ -84,14 +85,14 @@ async function subscribePush() {
 
     if (saveResp.ok) {
       updateNotifUI(true);
-      showPushToast('🔔 Notifications activées !', 'success');
+      showPushToast('Notifications activees !', 'success');
     } else {
-      showPushToast("❌ Erreur lors de l'enregistrement.", 'danger');
+      showPushToast('Erreur lors de l enregistrement.', 'danger');
     }
 
   } catch (err) {
     console.error('[Push] Erreur abonnement:', err);
-    showPushToast("❌ Impossible d'activer les notifications.", 'danger');
+    showPushToast('Impossible d activer les notifications.', 'danger');
   }
 }
 
@@ -100,15 +101,18 @@ async function unsubscribePush() {
   try {
     await fetch('/push/unsubscribe/', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken':  getCsrfToken(),
+      },
       body: JSON.stringify({ endpoint: pushSubscription.endpoint }),
     });
     await pushSubscription.unsubscribe();
     pushSubscription = null;
     updateNotifUI(false);
-    showPushToast('🔕 Notifications désactivées.', 'info');
+    showPushToast('Notifications desactivees.', 'info');
   } catch (err) {
-    console.error('[Push] Erreur désabonnement:', err);
+    console.error('[Push] Erreur desabonnement:', err);
   }
 }
 
@@ -121,7 +125,7 @@ function updateNotifUI(isSubscribed) {
   if (isSubscribed) {
     if (icon) icon.className = 'bi bi-bell-fill text-warning';
     if (text) text.textContent = 'Notifs ON';
-    btn.title   = 'Désactiver les notifications';
+    btn.title   = 'Desactiver les notifications';
     btn.onclick = unsubscribePush;
   } else {
     if (icon) icon.className = 'bi bi-bell-slash';
@@ -139,37 +143,37 @@ function hideNotifUI() {
 function showNotifPromptBanner() {
   if (sessionStorage.getItem('notif-banner-shown')) return;
   sessionStorage.setItem('notif-banner-shown', '1');
+
   const banner = document.createElement('div');
   banner.id = 'notif-invite-banner';
-  banner.style.cssText = [
-    'position:fixed', 'bottom:4.5rem', 'left:50%', 'transform:translateX(-50%)',
-    'background:#1A3A6B', 'color:white', 'padding:.8rem 1.2rem',
-    'border-radius:12px', 'box-shadow:0 4px 20px rgba(0,0,0,.3)',
-    'z-index:9998', 'display:flex', 'align-items:center', 'gap:.8rem',
+  banner.setAttribute('style', [
+    'position:fixed', 'bottom:4.5rem', 'left:50%',
+    'transform:translateX(-50%)', 'background:#1A3A6B',
+    'color:white', 'padding:.8rem 1.2rem', 'border-radius:12px',
+    'box-shadow:0 4px 20px rgba(0,0,0,.3)', 'z-index:9998',
+    'display:flex', 'align-items:center', 'gap:.8rem',
     'max-width:90vw', 'font-size:.9rem',
-  ].join(';');
-  banner.innerHTML = `
-    <i class="bi bi-bell-fill text-warning fs-5"></i>
-    <span>Activer les notifications pour être alerté en temps réel ?</span>
-    <button id="notif-banner-yes"
-            style="background:#FFC000;border:none;border-radius:8px;
-                   padding:.3rem .8rem;font-weight:700;color:#000;
-                   cursor:pointer;white-space:nowrap">
-      Activer
-    </button>
-    <button id="notif-banner-no"
-            style="background:transparent;border:none;
-                   color:rgba(255,255,255,.7);cursor:pointer;
-                   font-size:1.2rem;padding:0 .2rem">
-      ✕
-    </button>`;
+  ].join(';'));
+
+  const span = document.createElement('span');
+  span.innerHTML = '<i class="bi bi-bell-fill text-warning fs-5 me-2"></i>Activer les notifications pour les alertes carburant ?';
+
+  const btnYes = document.createElement('button');
+  btnYes.textContent = 'Activer';
+  btnYes.setAttribute('style', 'background:#FFC000;border:none;border-radius:8px;padding:.3rem .8rem;font-weight:700;color:#000;cursor:pointer;white-space:nowrap');
+  btnYes.onclick = function() { subscribePush(); banner.remove(); };
+
+  const btnNo = document.createElement('button');
+  btnNo.textContent = 'x';
+  btnNo.setAttribute('style', 'background:transparent;border:none;color:rgba(255,255,255,.7);cursor:pointer;font-size:1.2rem;padding:0 .3rem');
+  btnNo.onclick = function() { banner.remove(); };
+
+  banner.appendChild(span);
+  banner.appendChild(btnYes);
+  banner.appendChild(btnNo);
   document.body.appendChild(banner);
-  document.getElementById('notif-banner-yes').onclick = () => {
-    subscribePush();
-    banner.remove();
-  };
-  document.getElementById('notif-banner-no').onclick = () => banner.remove();
-  setTimeout(() => banner.remove(), 8000);
+
+  setTimeout(function() { if (banner.parentNode) banner.remove(); }, 8000);
 }
 
 function showPushToast(msg, type) {
@@ -181,20 +185,12 @@ function showPushToast(msg, type) {
 }
 
 function getCsrfToken() {
-  const cookie = document.cookie.split(';').find(c => c.trim().startsWith('csrftoken='));
+  const cookie = document.cookie.split(';').find(function(c) {
+    return c.trim().startsWith('csrftoken=');
+  });
   return cookie ? cookie.split('=')[1].trim() : '';
 }
 
-// Bannière install Android
-let deferredInstallPrompt = null;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredInstallPrompt = e;
-  // On ne force pas la bannière ici — laisser le pwa.js gérer
-  // Rendre disponible pour appel manuel
-  window.deferredInstallPrompt = e;
-});
-
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', function() {
   setTimeout(initNotifications, 1500);
 });
