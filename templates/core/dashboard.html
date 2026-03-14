@@ -1,30 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Tableau de bord{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  setTimeout(() => {
-    // Afficher la carte seulement si pas encore abonné et permission non refusée
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                         window.navigator.standalone === true;
-
-    if (!('PushManager' in window)) return;
-    if (isIOS && !isStandalone) return; // iOS non installé
-    if (Notification.permission === 'denied') return;
-    if (sessionStorage.getItem('notif-banner-shown')) return;
-
-    navigator.serviceWorker.ready.then(reg => {
-      reg.pushManager.getSubscription().then(sub => {
-        if (!sub) {
-          document.getElementById('notif-dashboard-card').style.display = 'flex';
-        }
-      });
-    });
-  }, 2000);
-});
-</script>
-{% endblock %}
+{% block title %}Tableau de bord{% endblock %}
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -39,7 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
   </a>
 </div>
 
-<!-- ── Bannière stock négatif ─────────────────────────────── -->
 {% if stock_negatif %}
 <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
   <i class="bi bi-exclamation-triangle-fill fs-5"></i>
@@ -50,9 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 {% endif %}
 
-<!-- ── Invite notification (si pas encore abonné) ───────────── -->
+<!-- Invite notification -->
 <div id="notif-dashboard-card" class="alert alert-primary d-flex align-items-center gap-3 mb-3"
-     style="display:none!important">
+     style="display:none">
   <i class="bi bi-bell-fill fs-4 flex-shrink-0"></i>
   <div class="flex-grow-1">
     <strong>Restez informé en temps réel</strong><br>
@@ -68,10 +42,8 @@ document.addEventListener('DOMContentLoaded', () => {
   </button>
 </div>
 
-<!-- ── KPI Cards ──────────────────────────────────────────── -->
+<!-- KPI Cards -->
 <div class="row g-3 mb-4">
-
-  <!-- Stock actuel -->
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3
       {% if stock_negatif %}border-danger bg-danger bg-opacity-10
@@ -84,8 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
   </div>
-
-  <!-- Entrées mois -->
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3 bg-primary bg-opacity-10 border-primary">
       <div class="text-muted small mb-1">
@@ -94,8 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="kpi-val text-primary">{{ entrees_mois|floatformat:0 }} L</div>
     </div>
   </div>
-
-  <!-- Sorties mois -->
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3 bg-warning bg-opacity-10 border-warning">
       <div class="text-muted small mb-1">
@@ -104,8 +72,6 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="kpi-val text-warning">{{ sorties_mois|floatformat:0 }} L</div>
     </div>
   </div>
-
-  <!-- Engins actifs -->
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3 bg-secondary bg-opacity-10 border-secondary">
       <div class="text-muted small mb-1">
@@ -116,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
 
-<!-- ── Accès rapides ──────────────────────────────────────── -->
+<!-- Accès rapides -->
 <div class="row g-3 mb-4">
   <div class="col-12">
     <h6 class="fw-bold text-muted text-uppercase small mb-2">Saisie rapide</h6>
@@ -144,9 +110,8 @@ document.addEventListener('DOMContentLoaded', () => {
   </div>
 </div>
 
-<!-- ── Dernières opérations ───────────────────────────────── -->
+<!-- Dernières opérations -->
 <div class="row g-3">
-  <!-- Entrées stock -->
   <div class="col-12 col-xl-6">
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white fw-semibold border-bottom py-3">
@@ -156,9 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {% if dernieres_ops %}
         <div class="table-responsive">
           <table class="table table-sm table-striped mb-0">
-            <thead><tr>
-              <th>Date</th><th>Quantité</th><th>Opérateur</th>
-            </tr></thead>
+            <thead><tr><th>Date</th><th>Quantité</th><th>Opérateur</th></tr></thead>
             <tbody>
               {% for op in dernieres_ops %}
               <tr>
@@ -176,8 +139,6 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
   </div>
-
-  <!-- Derniers ravitaillements engins -->
   <div class="col-12 col-xl-6">
     <div class="card border-0 shadow-sm">
       <div class="card-header bg-white fw-semibold border-bottom py-3">
@@ -187,9 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
         {% if derniers_ravs %}
         <div class="table-responsive">
           <table class="table table-sm table-striped mb-0">
-            <thead><tr>
-              <th>Date</th><th>Engin</th><th>Qté</th><th>Statut</th>
-            </tr></thead>
+            <thead><tr><th>Date</th><th>Engin</th><th>Qté</th><th>Statut</th></tr></thead>
             <tbody>
               {% for rav in derniers_ravs %}
               <tr>
@@ -219,4 +178,28 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone === true;
+    if (!('PushManager' in window)) return;
+    if (isIOS && !isStandalone) return;
+    if (Notification.permission === 'denied') return;
+    if (sessionStorage.getItem('notif-banner-shown')) return;
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        if (!sub) {
+          document.getElementById('notif-dashboard-card').style.display = 'flex';
+        }
+      });
+    });
+  }, 2000);
+});
+</script>
 {% endblock %}
