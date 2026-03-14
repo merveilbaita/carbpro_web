@@ -376,3 +376,63 @@ class EnginForm(forms.ModelForm):
         if not self.is_edit and Engin.objects.filter(id_engin=val).exists():
             raise forms.ValidationError("Cet identifiant existe déjà.")
         return val
+
+
+# ── Formulaires édition historique ───────────────────────────
+
+class EditOperationStockForm(forms.ModelForm):
+    class Meta:
+        model  = OperationStock
+        fields = ["date", "quantite", "description"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type":"date","class":"form-control form-control-lg"}),
+            "quantite": forms.NumberInput(attrs={"class":"form-control form-control-lg","step":"0.01","min":"0.01"}),
+            "description": forms.TextInput(attrs={"class":"form-control","placeholder":"Description (optionnel)"}),
+        }
+        labels = {"date":"Date *","quantite":"Quantité (L) *","description":"Description"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["description"].required = False
+
+
+class EditRavitaillementEnginForm(forms.ModelForm):
+    class Meta:
+        model  = RavitaillementEngin
+        fields = ["date", "index_precedent", "index_actuel", "qte_donnee", "statut", "commentaire"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type":"date","class":"form-control form-control-lg"}),
+            "index_precedent": forms.NumberInput(attrs={"class":"form-control","step":"0.1","min":"0"}),
+            "index_actuel": forms.NumberInput(attrs={"class":"form-control","step":"0.1","min":"0"}),
+            "qte_donnee": forms.NumberInput(attrs={"class":"form-control form-control-lg","step":"0.01","min":"0.01"}),
+            "statut": forms.Select(attrs={"class":"form-select"}),
+            "commentaire": forms.TextInput(attrs={"class":"form-control","placeholder":"Commentaire"}),
+        }
+        labels = {
+            "date":"Date *", "index_precedent":"Index précédent",
+            "index_actuel":"Index actuel", "qte_donnee":"Quantité (L) *",
+            "statut":"Statut", "commentaire":"Commentaire",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["index_precedent"].required = False
+        self.fields["index_actuel"].required = False
+        self.fields["commentaire"].required = False
+
+
+class EditConsommationDiverseForm(forms.ModelForm):
+    class Meta:
+        model  = ConsommationDiverse
+        fields = ["date", "categorie", "quantite", "motif"]
+        widgets = {
+            "date": forms.DateInput(attrs={"type":"date","class":"form-control form-control-lg"}),
+            "categorie": forms.Select(attrs={"class":"form-select form-select-lg"}),
+            "quantite": forms.NumberInput(attrs={"class":"form-control form-control-lg","step":"0.01","min":"0.01"}),
+            "motif": forms.TextInput(attrs={"class":"form-control","placeholder":"Motif (optionnel)"}),
+        }
+        labels = {"date":"Date *","categorie":"Catégorie *","quantite":"Quantité (L) *","motif":"Motif"}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["motif"].required = False

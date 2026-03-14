@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       reg.pushManager.getSubscription().then(sub => {
         if (!sub) {
           const card = document.getElementById('notif-dashboard-card');
-          if (card) card.style.display = 'block';
+          if (card) card.style.display = 'flex';
         }
       });
     }).catch(() => {});

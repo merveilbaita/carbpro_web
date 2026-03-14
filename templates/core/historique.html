@@ -7,7 +7,6 @@
     <i class="bi bi-clock-history"></i> Historique des opérations
   </h5>
 
-  <!-- Filtres mois/année -->
   <form method="get" class="d-flex gap-2 align-items-center flex-wrap">
     <select name="mois" class="form-select form-select-sm" style="width:130px">
       {% for val, label in mois_choices %}
@@ -28,6 +27,8 @@
     </a>
   </form>
 </div>
+
+{% with is_admin=request.user.is_superuser or request.user.profile.role == "administrateur" %}
 
 <!-- Tabs -->
 <ul class="nav nav-tabs mb-3" id="histTabs">
@@ -53,15 +54,16 @@
 
 <div class="tab-content">
 
-  <!-- ── Onglet Stock ──────────────────────────────────────── -->
+  <!-- ── Onglet Stock ───────────────────────────────────────── -->
   <div class="tab-pane fade show active" id="tab-stock">
     <div class="card border-0 shadow-sm">
       <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0">
+        <table class="table table-striped table-hover mb-0 align-middle">
           <thead>
             <tr>
               <th>Date</th><th>Type</th><th>Quantité</th>
               <th>Stock après</th><th>Description</th><th>Opérateur</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -81,9 +83,25 @@
               </td>
               <td><small>{{ op.description|default:"—" }}</small></td>
               <td><small class="text-muted">{{ op.operateur.username|default:"—" }}</small></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{% url 'edit_operation_stock' op.pk %}"
+                     class="btn btn-xs btn-outline-primary"
+                     style="padding:.2rem .5rem;font-size:.75rem">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  {% if is_admin %}
+                  <a href="{% url 'delete_operation_stock' op.pk %}"
+                     class="btn btn-xs btn-outline-danger"
+                     style="padding:.2rem .5rem;font-size:.75rem">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="text-center text-muted py-4">Aucune opération ce mois</td></tr>
+            <tr><td colspan="7" class="text-center text-muted py-4">Aucune opération ce mois</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -91,16 +109,16 @@
     </div>
   </div>
 
-  <!-- ── Onglet Engins ─────────────────────────────────────── -->
+  <!-- ── Onglet Engins ──────────────────────────────────────── -->
   <div class="tab-pane fade" id="tab-engins">
     <div class="card border-0 shadow-sm">
       <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0">
+        <table class="table table-striped table-hover mb-0 align-middle">
           <thead>
             <tr>
-              <th>Date</th><th>Engin</th><th>Index Préc.</th>
-              <th>Index Act.</th><th>Diff.</th><th>Qté</th>
-              <th>Taux</th><th>Statut</th><th>Commentaire</th>
+              <th>Date</th><th>Engin</th><th>Idx Préc.</th>
+              <th>Idx Act.</th><th>Qté</th><th>Taux</th>
+              <th>Statut</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -110,7 +128,6 @@
               <td class="fw-semibold">{{ rav.engin.id_engin }}</td>
               <td>{{ rav.index_precedent|floatformat:1 }}</td>
               <td>{{ rav.index_actuel|floatformat:1 }}</td>
-              <td>{{ rav.difference_index|floatformat:1 }}</td>
               <td class="fw-semibold">{{ rav.qte_donnee|floatformat:1 }} L</td>
               <td>{{ rav.taux_reel|floatformat:2|default:"—" }}</td>
               <td>
@@ -119,15 +136,30 @@
                 {% elif rav.statut == "anomalie" %}
                   <span class="badge bg-danger">Anomalie</span>
                 {% elif rav.statut == "panne_index" %}
-                  <span class="badge bg-secondary">Panne index</span>
+                  <span class="badge bg-secondary">Panne</span>
                 {% else %}
                   <span class="badge bg-warning text-dark">Non vérifié</span>
                 {% endif %}
               </td>
-              <td><small>{{ rav.commentaire|default:"—" }}</small></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{% url 'edit_ravitaillement' rav.pk %}"
+                     class="btn btn-xs btn-outline-primary"
+                     style="padding:.2rem .5rem;font-size:.75rem">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  {% if is_admin %}
+                  <a href="{% url 'delete_ravitaillement' rav.pk %}"
+                     class="btn btn-xs btn-outline-danger"
+                     style="padding:.2rem .5rem;font-size:.75rem">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="9" class="text-center text-muted py-4">Aucun ravitaillement ce mois</td></tr>
+            <tr><td colspan="8" class="text-center text-muted py-4">Aucun ravitaillement ce mois</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -139,11 +171,11 @@
   <div class="tab-pane fade" id="tab-divers">
     <div class="card border-0 shadow-sm">
       <div class="table-responsive">
-        <table class="table table-striped table-hover mb-0">
+        <table class="table table-striped table-hover mb-0 align-middle">
           <thead>
             <tr>
               <th>Date</th><th>Catégorie</th><th>Quantité</th>
-              <th>Motif</th><th>Opérateur</th>
+              <th>Motif</th><th>Opérateur</th><th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -154,9 +186,25 @@
               <td>{{ div.quantite|floatformat:1 }} L</td>
               <td><small>{{ div.motif|default:"—" }}</small></td>
               <td><small class="text-muted">{{ div.operateur.username|default:"—" }}</small></td>
+              <td>
+                <div class="d-flex gap-1">
+                  <a href="{% url 'edit_consommation_diverse' div.pk %}"
+                     class="btn btn-xs btn-outline-primary"
+                     style="padding:.2rem .5rem;font-size:.75rem">
+                    <i class="bi bi-pencil"></i>
+                  </a>
+                  {% if is_admin %}
+                  <a href="{% url 'delete_consommation_diverse' div.pk %}"
+                     class="btn btn-xs btn-outline-danger"
+                     style="padding:.2rem .5rem;font-size:.75rem">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                  {% endif %}
+                </div>
+              </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="text-center text-muted py-4">Aucune consommation diverse ce mois</td></tr>
+            <tr><td colspan="6" class="text-center text-muted py-4">Aucune consommation diverse ce mois</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -165,4 +213,5 @@
   </div>
 
 </div>
+{% endwith %}
 {% endblock %}

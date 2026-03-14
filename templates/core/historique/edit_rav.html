@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Modifier ravitaillement{% endblock %}
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'historique' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="form-card">
+      <h5 class="fw-bold mb-1" style="color:#1A3A6B">
+        <i class="bi bi-pencil me-2"></i>Modifier — Ravitaillement {{ rav.engin_id }}
+      </h5>
+      <p class="text-muted small mb-4">
+        {{ rav.date|date:"d/m/Y" }} — {{ rav.qte_donnee|floatformat:1 }} L
+        — <span class="badge
+          {% if rav.statut == 'normal' %}bg-success
+          {% elif rav.statut == 'anomalie' %}bg-danger
+          {% elif rav.statut == 'panne_index' %}bg-secondary
+          {% else %}bg-warning text-dark{% endif %}">
+          {{ rav.get_statut_display }}
+        </span>
+      </p>
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if rav.engin.mode_appro == "avec_index" %}
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label class="form-label fw-semibold">{{ form.index_precedent.label }}</label>
+            {{ form.index_precedent }}
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold">{{ form.index_actuel.label }}</label>
+            {{ form.index_actuel }}
+          </div>
+        </div>
+        {% endif %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.date.label }}</label>
+          {{ form.date }}
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.qte_donnee.label }}</label>
+          <div class="input-group">{{ form.qte_donnee }}<span class="input-group-text">L</span></div>
+          {% if form.qte_donnee.errors %}<div class="text-danger small mt-1">{{ form.qte_donnee.errors.0 }}</div>{% endif %}
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.statut.label }}</label>
+          {{ form.statut }}
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">{{ form.commentaire.label }}</label>
+          {{ form.commentaire }}
+        </div>
+        <button type="submit" class="btn btn-primary w-100 btn-lg">
+          <i class="bi bi-check-circle me-2"></i>Enregistrer
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Confirmer suppression{% endblock %}
+{% block content %}
+<div class="row justify-content-center mt-4">
+  <div class="col-12 col-md-6 col-lg-5">
+    <div class="card border-danger border-2 shadow-sm">
+      <div class="card-header bg-danger text-white fw-bold">
+        <i class="bi bi-exclamation-triangle-fill"></i> Confirmer la suppression
+      </div>
+      <div class="card-body text-center py-4">
+        <div class="mb-3" style="font-size:3rem">🗑️</div>
+        <p class="mb-4">
+          Voulez-vous supprimer <strong>{{ objet }}</strong> ?<br>
+          <span class="text-danger small">Cette action est irréversible.</span>
+        </p>
+        <div class="alert alert-warning text-start small">
+          <i class="bi bi-info-circle"></i>
+          Le stock sera recalculé automatiquement après la suppression.
+        </div>
+        <div class="d-flex gap-2 justify-content-center mt-3">
+          <a href="{% url retour_url %}" class="btn btn-outline-secondary btn-lg">
+            <i class="bi bi-x-circle"></i> Annuler
+          </a>
+          <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-lg">
+              <i class="bi bi-trash"></i> Supprimer
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

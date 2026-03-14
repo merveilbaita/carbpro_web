@@ -7,6 +7,13 @@ urlpatterns = [
     path("appro-engin/",          views.appro_engin,           name="appro_engin"),
     path("consommation-diverse/", views.consommation_diverse,  name="consommation_diverse"),
     path("historique/",           views.historique,            name="historique"),
+    # Historique — édition et suppression
+    path("historique/stock/<int:pk>/edit/",    views.edit_operation_stock,      name="edit_operation_stock"),
+    path("historique/stock/<int:pk>/delete/",  views.delete_operation_stock,    name="delete_operation_stock"),
+    path("historique/rav/<int:pk>/edit/",      views.edit_ravitaillement,       name="edit_ravitaillement"),
+    path("historique/rav/<int:pk>/delete/",    views.delete_ravitaillement,     name="delete_ravitaillement"),
+    path("historique/diverse/<int:pk>/edit/",  views.edit_consommation_diverse, name="edit_consommation_diverse"),
+    path("historique/diverse/<int:pk>/delete/",views.delete_consommation_diverse,name="delete_consommation_diverse"),
     path("export-excel/",         views.export_excel,          name="export_excel"),
     path("import-excel/",         views.import_excel,          name="import_excel"),
     # PWA

@@ -865,3 +865,158 @@ def supprimer_engin(request, id_engin):
         "engin":   engin,
         "nb_ravs": nb_ravs,
     })
+
+
+# ── Historique — édition et suppression ───────────────────────
+
+def _recalc_stocks():
+    """Recalcule tous les stock_apres après modification."""
+    stock = 0
+    for op in OperationStock.objects.order_by("date", "cree_le"):
+        if op.type == "entree":
+            stock += op.quantite
+        else:
+            stock -= op.quantite
+        op.stock_apres = stock
+        op.save(update_fields=["stock_apres"])
+
+
+# ── Opération Stock ───────────────────────────────────────────
+@login_required
+def edit_operation_stock(request, pk):
+    op = get_object_or_404(OperationStock, pk=pk)
+    from .forms import EditOperationStockForm
+
+    if request.method == "POST":
+        form = EditOperationStockForm(request.POST, instance=op)
+        if form.is_valid():
+            form.save()
+            _recalc_stocks()
+            messages.success(request, "✅ Opération stock mise à jour.")
+            return redirect("historique")
+    else:
+        form = EditOperationStockForm(instance=op)
+
+    return render(request, "core/historique/edit_stock.html", {
+        "form": form, "op": op
+    })
+
+
+@admin_required
+def delete_operation_stock(request, pk):
+    op = get_object_or_404(OperationStock, pk=pk)
+    if request.method == "POST":
+        op.delete()
+        _recalc_stocks()
+        messages.success(request, "✅ Opération supprimée.")
+        return redirect("historique")
+    return render(request, "core/historique/confirmer_suppression.html", {
+        "objet": f"l'opération stock du {op.date.strftime('%d/%m/%Y')} ({op.quantite:.0f} L)",
+        "retour_url": "historique",
+    })
+
+
+# ── Ravitaillement Engin ───────────────────────────────────────
+@login_required
+def edit_ravitaillement(request, pk):
+    rav = get_object_or_404(RavitaillementEngin, pk=pk)
+    from .forms import EditRavitaillementEnginForm
+
+    if request.method == "POST":
+        form = EditRavitaillementEnginForm(request.POST, instance=rav)
+        if form.is_valid():
+            r = form.save(commit=False)
+            # Recalculer différence index
+            r.difference_index = (r.index_actuel or 0) - (r.index_precedent or 0)
+            r.save()
+            # Mettre à jour la sortie stock correspondante
+            OperationStock.objects.filter(
+                description__icontains=f"Appro {rav.engin_id}",
+                date=rav.date,
+            ).update(quantite=r.qte_donnee)
+            _recalc_stocks()
+            messages.success(request, "✅ Ravitaillement mis à jour.")
+            return redirect("historique")
+    else:
+        form = EditRavitaillementEnginForm(instance=rav)
+
+    return render(request, "core/historique/edit_rav.html", {
+        "form": form, "rav": rav
+    })
+
+
+@admin_required
+def delete_ravitaillement(request, pk):
+    rav = get_object_or_404(RavitaillementEngin, pk=pk)
+    if request.method == "POST":
+        # Supprimer la sortie stock associée
+        OperationStock.objects.filter(
+            description__icontains=f"Appro {rav.engin_id}",
+            date=rav.date,
+            type="sortie",
+        ).first() and OperationStock.objects.filter(
+            description__icontains=f"Appro {rav.engin_id}",
+            date=rav.date,
+            type="sortie",
+        ).first().delete()
+        rav.delete()
+        _recalc_stocks()
+        messages.success(request, "✅ Ravitaillement supprimé.")
+        return redirect("historique")
+    return render(request, "core/historique/confirmer_suppression.html", {
+        "objet": f"le ravitaillement {rav.engin_id} du {rav.date.strftime('%d/%m/%Y')} ({rav.qte_donnee:.0f} L)",
+        "retour_url": "historique",
+    })
+
+
+# ── Consommation Diverse ──────────────────────────────────────
+@login_required
+def edit_consommation_diverse(request, pk):
+    div = get_object_or_404(ConsommationDiverse, pk=pk)
+    from .forms import EditConsommationDiverseForm
+
+    if request.method == "POST":
+        form = EditConsommationDiverseForm(request.POST, instance=div)
+        if form.is_valid():
+            form.save()
+            OperationStock.objects.filter(
+                description__icontains=f"Divers",
+                date=div.date,
+                type="sortie",
+            ).first() and OperationStock.objects.filter(
+                description__icontains="Divers",
+                date=div.date,
+                type="sortie",
+            ).update(quantite=form.cleaned_data["quantite"])
+            _recalc_stocks()
+            messages.success(request, "✅ Consommation diverse mise à jour.")
+            return redirect("historique")
+    else:
+        form = EditConsommationDiverseForm(instance=div)
+
+    return render(request, "core/historique/edit_diverse.html", {
+        "form": form, "div": div
+    })
+
+
+@admin_required
+def delete_consommation_diverse(request, pk):
+    div = get_object_or_404(ConsommationDiverse, pk=pk)
+    if request.method == "POST":
+        OperationStock.objects.filter(
+            description__icontains="Divers",
+            date=div.date,
+            type="sortie",
+        ).first() and OperationStock.objects.filter(
+            description__icontains="Divers",
+            date=div.date,
+            type="sortie",
+        ).first().delete()
+        div.delete()
+        _recalc_stocks()
+        messages.success(request, "✅ Consommation diverse supprimée.")
+        return redirect("historique")
+    return render(request, "core/historique/confirmer_suppression.html", {
+        "objet": f"la consommation {div.categorie} du {div.date.strftime('%d/%m/%Y')} ({div.quantite:.0f} L)",
+        "retour_url": "historique",
+    })
