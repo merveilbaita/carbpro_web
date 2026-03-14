@@ -28,8 +28,6 @@
   </form>
 </div>
 
-{% with is_admin=request.user.is_superuser or request.user.profile.role == "administrateur" %}
-
 <!-- Tabs -->
 <ul class="nav nav-tabs mb-3" id="histTabs">
   <li class="nav-item">
@@ -213,5 +211,4 @@
   </div>
 
 </div>
-{% endwith %}
 {% endblock %}

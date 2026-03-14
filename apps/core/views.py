@@ -325,6 +325,7 @@ def historique(request):
         "ops": ops, "ravs": ravs, "divs": divs,
         "mois": int(mois), "annee": int(annee),
         "annees": annees,
+        "is_admin": request.user.is_superuser or get_user_role(request.user) == "administrateur",
         "mois_choices": [
             (1,"Janvier"),(2,"Février"),(3,"Mars"),(4,"Avril"),
             (5,"Mai"),(6,"Juin"),(7,"Juillet"),(8,"Août"),
