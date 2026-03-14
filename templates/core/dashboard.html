@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Tableau de bord{% endblock %}
 
+{% block extra_css %}
+<style>
+  .chart-card { background:#fff; border-radius:14px; box-shadow:0 2px 12px rgba(0,0,0,.07); padding:1.2rem; }
+  .chart-title { font-size:.85rem; font-weight:700; color:#1A3A6B; text-transform:uppercase; letter-spacing:.5px; margin-bottom:.8rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
   <div>
@@ -14,106 +21,142 @@
   </a>
 </div>
 
+<!-- Alertes -->
 {% if stock_negatif %}
 <div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
   <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-  <div>
-    <strong>Stock négatif — débit fournisseur en attente</strong><br>
-    <small>Une facture de régularisation est nécessaire.</small>
-  </div>
+  <div><strong>Stock négatif — débit fournisseur en attente</strong><br>
+  <small>Une facture de régularisation est nécessaire.</small></div>
 </div>
 {% elif stock_bas %}
 <div class="alert alert-warning d-flex align-items-center gap-2 mb-3">
   <i class="bi bi-exclamation-triangle-fill fs-5"></i>
-  <div>
-    <strong>Stock bas — {{ stock|floatformat:0 }} L restants</strong><br>
-    <small>Sous le seuil d'alerte de {{ seuil|floatformat:0 }} L. Pensez à commander.</small>
-  </div>
+  <div><strong>Stock bas — {{ stock|floatformat:0 }} L restants</strong><br>
+  <small>Sous le seuil d'alerte de {{ seuil|floatformat:0 }} L. Pensez à commander.</small></div>
 </div>
 {% endif %}
 
 <!-- Invite notification -->
-<div id="notif-dashboard-card" class="alert alert-primary d-flex align-items-center gap-3 mb-3"
-     style="display:none">
+<div id="notif-dashboard-card" class="alert alert-primary d-flex align-items-center gap-3 mb-3" style="display:none">
   <i class="bi bi-bell-fill fs-4 flex-shrink-0"></i>
   <div class="flex-grow-1">
     <strong>Restez informé en temps réel</strong><br>
-    <small>Activez les notifications pour recevoir les alertes carburant sur cet appareil.</small>
+    <small>Activez les notifications pour recevoir les alertes carburant.</small>
   </div>
-  <button id="notif-activer-btn" class="btn btn-primary btn-sm flex-shrink-0">
+  <button onclick="subscribePush(); document.getElementById('notif-dashboard-card').style.display='none'"
+          class="btn btn-primary btn-sm flex-shrink-0">
     <i class="bi bi-bell"></i> Activer
   </button>
-  <button id="notif-plus-tard-btn" class="btn btn-outline-secondary btn-sm flex-shrink-0">
-    Plus tard
-  </button>
+  <button onclick="document.getElementById('notif-dashboard-card').style.display='none'"
+          class="btn btn-outline-secondary btn-sm flex-shrink-0">Plus tard</button>
 </div>
 
-<!-- KPI Cards -->
+<!-- KPI -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3
       {% if stock_negatif %}border-danger bg-danger bg-opacity-10
+      {% elif stock_bas %}border-warning bg-warning bg-opacity-10
       {% else %}border-success bg-success bg-opacity-10{% endif %}">
-      <div class="text-muted small mb-1">
-        <i class="bi bi-droplet-half"></i> Stock actuel
-      </div>
-      <div class="kpi-val {% if stock_negatif %}text-danger{% else %}text-success{% endif %}">
+      <div class="text-muted small mb-1"><i class="bi bi-droplet-half"></i> Stock actuel</div>
+      <div class="kpi-val {% if stock_negatif %}text-danger{% elif stock_bas %}text-warning{% else %}text-success{% endif %}">
         {{ stock|floatformat:0 }} L
       </div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3 bg-primary bg-opacity-10 border-primary">
-      <div class="text-muted small mb-1">
-        <i class="bi bi-arrow-down-circle"></i> Entrées ce mois
-      </div>
+      <div class="text-muted small mb-1"><i class="bi bi-arrow-down-circle"></i> Entrées ce mois</div>
       <div class="kpi-val text-primary">{{ entrees_mois|floatformat:0 }} L</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3 bg-warning bg-opacity-10 border-warning">
-      <div class="text-muted small mb-1">
-        <i class="bi bi-arrow-up-circle"></i> Sorties ce mois
-      </div>
+      <div class="text-muted small mb-1"><i class="bi bi-arrow-up-circle"></i> Sorties ce mois</div>
       <div class="kpi-val text-warning">{{ sorties_mois|floatformat:0 }} L</div>
     </div>
   </div>
   <div class="col-6 col-lg-3">
     <div class="kpi-card card h-100 p-3 bg-secondary bg-opacity-10 border-secondary">
-      <div class="text-muted small mb-1">
-        <i class="bi bi-truck"></i> Engins actifs
-      </div>
+      <div class="text-muted small mb-1"><i class="bi bi-truck"></i> Engins actifs</div>
       <div class="kpi-val text-secondary">{{ nb_engins }}</div>
     </div>
   </div>
 </div>
 
 <!-- Accès rapides -->
-<div class="row g-3 mb-4">
-  <div class="col-12">
-    <h6 class="fw-bold text-muted text-uppercase small mb-2">Saisie rapide</h6>
-  </div>
-  <div class="col-4 col-md-3">
+<div class="row g-2 mb-4">
+  <div class="col-4">
     <a href="{% url 'ravitaillement_stock' %}"
-       class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-3 gap-1">
-      <i class="bi bi-truck fs-4"></i>
-      <span class="small fw-semibold">Entrée stock</span>
+       class="btn btn-outline-primary w-100 d-flex flex-column align-items-center py-2 gap-1">
+      <i class="bi bi-truck fs-4"></i><span class="small fw-semibold d-none d-md-block">Entrée stock</span>
     </a>
   </div>
-  <div class="col-4 col-md-3">
+  <div class="col-4">
     <a href="{% url 'appro_engin' %}"
-       class="btn btn-outline-success w-100 d-flex flex-column align-items-center py-3 gap-1">
-      <i class="bi bi-gear-fill fs-4"></i>
-      <span class="small fw-semibold">Appro engin</span>
+       class="btn btn-outline-success w-100 d-flex flex-column align-items-center py-2 gap-1">
+      <i class="bi bi-gear-fill fs-4"></i><span class="small fw-semibold d-none d-md-block">Appro engin</span>
     </a>
   </div>
-  <div class="col-4 col-md-3">
+  <div class="col-4">
     <a href="{% url 'consommation_diverse' %}"
-       class="btn btn-outline-warning w-100 d-flex flex-column align-items-center py-3 gap-1">
-      <i class="bi bi-droplet-fill fs-4"></i>
-      <span class="small fw-semibold">Divers</span>
+       class="btn btn-outline-warning w-100 d-flex flex-column align-items-center py-2 gap-1">
+      <i class="bi bi-droplet-fill fs-4"></i><span class="small fw-semibold d-none d-md-block">Divers</span>
     </a>
   </div>
+</div>
+
+<!-- ── GRAPHIQUES ─────────────────────────────────────────── -->
+
+<!-- Graphique 1 : Évolution stock 30 jours -->
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="chart-card">
+      <div class="chart-title">
+        <i class="bi bi-graph-up text-primary me-1"></i>
+        Évolution du stock — 30 derniers jours
+      </div>
+      <div style="height:200px">
+        <canvas id="chartStock"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Graphique 2 : Entrées/Sorties + Graphique 3 : Engins -->
+<div class="row g-3 mb-4">
+
+  <div class="col-12 col-xl-7">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-bar-chart-fill text-success me-1"></i>
+        Entrées vs Sorties — 30 derniers jours
+      </div>
+      <div style="height:220px">
+        <canvas id="chartEntreesSorties"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-xl-5">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-pie-chart-fill me-1" style="color:#8B0000"></i>
+        Consommation par engin — ce mois
+      </div>
+      {% if chart_engins_data != "[]" %}
+      <div style="height:220px">
+        <canvas id="chartEngins"></canvas>
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-5 small">
+        <i class="bi bi-gear fs-3 d-block mb-2 opacity-25"></i>
+        Aucun ravitaillement ce mois
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
 </div>
 
 <!-- Dernières opérations -->
@@ -162,15 +205,10 @@
                 <td class="fw-semibold">{{ rav.engin.id_engin }}</td>
                 <td>{{ rav.qte_donnee|floatformat:0 }} L</td>
                 <td>
-                  {% if rav.statut == "normal" %}
-                    <span class="badge bg-success">Normal</span>
-                  {% elif rav.statut == "anomalie" %}
-                    <span class="badge bg-danger">Anomalie</span>
-                  {% elif rav.statut == "panne_index" %}
-                    <span class="badge bg-secondary">Panne index</span>
-                  {% else %}
-                    <span class="badge bg-warning text-dark">Non vérifié</span>
-                  {% endif %}
+                  {% if rav.statut == "normal" %}<span class="badge bg-success">Normal</span>
+                  {% elif rav.statut == "anomalie" %}<span class="badge bg-danger">Anomalie</span>
+                  {% elif rav.statut == "panne_index" %}<span class="badge bg-secondary">Panne</span>
+                  {% else %}<span class="badge bg-warning text-dark">Non vér.</span>{% endif %}
                 </td>
               </tr>
               {% endfor %}
@@ -187,52 +225,165 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-function hideNotifCard() {
-  const card = document.getElementById('notif-dashboard-card');
-  if (card) card.style.display = 'none';
-  sessionStorage.setItem('notif-banner-shown', '1');
-}
+// ── Données depuis Django ────────────────────────────────────
+const labels30       = {{ chart_labels_30|safe }};
+const dataEntrees    = {{ chart_entrees|safe }};
+const dataSorties    = {{ chart_sorties|safe }};
+const enginsLabels   = {{ chart_engins_labels|safe }};
+const enginsData     = {{ chart_engins_data|safe }};
+const enginsColors   = {{ chart_engins_colors|safe }};
+const stockLabels    = {{ chart_stock_labels|safe }};
+const stockData      = {{ chart_stock_data|safe }};
+const seuil          = {{ seuil_json }};
 
-document.addEventListener('DOMContentLoaded', () => {
-  // Bouton Activer
-  document.getElementById('notif-activer-btn')?.addEventListener('click', () => {
-    hideNotifCard();
-    // Appeler subscribePush quand notifications.js est prêt
-    if (typeof subscribePush === 'function') {
-      subscribePush();
-    } else {
-      // Attendre que notifications.js soit chargé
-      window.addEventListener('load', () => {
-        if (typeof subscribePush === 'function') subscribePush();
-      });
+Chart.defaults.font.family = "'Segoe UI', sans-serif";
+Chart.defaults.font.size   = 11;
+
+// ── Graphique 1 : Évolution stock ────────────────────────────
+new Chart(document.getElementById('chartStock'), {
+  type: 'line',
+  data: {
+    labels: stockLabels,
+    datasets: [{
+      label: 'Stock (L)',
+      data:  stockData,
+      borderColor: '#1A3A6B',
+      backgroundColor: 'rgba(26,58,107,.08)',
+      borderWidth: 2,
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+      pointHoverRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => `Stock : ${ctx.parsed.y.toLocaleString()} L`
+        }
+      },
+      annotation: {
+        annotations: {
+          seuilLine: {
+            type: 'line',
+            yMin: seuil, yMax: seuil,
+            borderColor: '#FFC000',
+            borderWidth: 1.5,
+            borderDash: [5, 5],
+            label: {
+              content: `Seuil ${seuil} L`,
+              display: true,
+              position: 'end',
+              font: { size: 10 },
+              color: '#b8860b',
+            }
+          }
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+      y: { beginAtZero: false, grid: { color: 'rgba(0,0,0,.05)' } }
     }
-  });
+  }
+});
 
-  // Bouton Plus tard
-  document.getElementById('notif-plus-tard-btn')?.addEventListener('click', hideNotifCard);
+// ── Graphique 2 : Entrées/Sorties barres ──────────────────────
+new Chart(document.getElementById('chartEntreesSorties'), {
+  type: 'bar',
+  data: {
+    labels: labels30,
+    datasets: [
+      {
+        label: 'Entrées (L)',
+        data: dataEntrees,
+        backgroundColor: 'rgba(26,122,60,.7)',
+        borderRadius: 3,
+        borderSkipped: false,
+      },
+      {
+        label: 'Sorties (L)',
+        data: dataSorties,
+        backgroundColor: 'rgba(139,0,0,.7)',
+        borderRadius: 3,
+        borderSkipped: false,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'top', labels: { boxWidth: 12, padding: 8 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.dataset.label} : ${ctx.parsed.y.toLocaleString()} L`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } },
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,.05)' } }
+    }
+  }
+});
 
-  // Afficher la carte si conditions remplies
-  setTimeout(() => {
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                         window.navigator.standalone === true;
+// ── Graphique 3 : Doughnut engins ────────────────────────────
+{% if chart_engins_data != "[]" %}
+new Chart(document.getElementById('chartEngins'), {
+  type: 'doughnut',
+  data: {
+    labels: enginsLabels,
+    datasets: [{
+      data:            enginsData,
+      backgroundColor: enginsColors,
+      borderWidth: 2,
+      borderColor: '#fff',
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { boxWidth: 12, padding: 8, font: { size: 11 } }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.label} : ${ctx.parsed.toLocaleString()} L`
+        }
+      }
+    },
+    cutout: '60%',
+  }
+});
+{% endif %}
 
+// ── Invite notification ──────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true;
     if (!('PushManager' in window)) return;
     if (isIOS && !isStandalone) return;
     if (Notification.permission === 'denied') return;
     if (sessionStorage.getItem('notif-banner-shown')) return;
-
-    navigator.serviceWorker.ready.then(reg => {
-      reg.pushManager.getSubscription().then(sub => {
-        if (!sub) {
-          const card = document.getElementById('notif-dashboard-card');
-          if (card) card.style.display = 'flex';
-        }
+    navigator.serviceWorker.ready.then(function(reg) {
+      reg.pushManager.getSubscription().then(function(sub) {
+        if (!sub) document.getElementById('notif-dashboard-card').style.display = 'flex';
       });
-    }).catch(() => {});
-  }, 2500);
+    });
+  }, 2000);
 });
 </script>
 {% endblock %}

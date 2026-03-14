@@ -130,11 +130,83 @@ def dashboard(request):
     ).aggregate(t=Sum("quantite"))["t"] or 0
 
     sorties_mois = sorties_engin_mois + sorties_div_mois
-
     nb_engins    = Engin.objects.filter(actif=True).count()
     dernieres_ops = OperationStock.objects.select_related("operateur")[:5]
     derniers_ravs = RavitaillementEngin.objects.select_related(
         "engin", "operateur")[:5]
+
+    # ── Données graphique 1 : entrées/sorties 30 derniers jours ──
+    from django.db.models import Sum as DSum
+    from datetime import timedelta
+    import json as _json
+
+    date_debut_30 = now - timedelta(days=29)
+    labels_30, data_entrees, data_sorties = [], [], []
+
+    for i in range(30):
+        jour = date_debut_30 + timedelta(days=i)
+        labels_30.append(jour.strftime("%d/%m"))
+
+        e = OperationStock.objects.filter(
+            type="entree", date=jour
+        ).aggregate(t=DSum("quantite"))["t"] or 0
+
+        s_engin = RavitaillementEngin.objects.filter(
+            date=jour
+        ).aggregate(t=DSum("qte_donnee"))["t"] or 0
+        s_div = ConsommationDiverse.objects.filter(
+            date=jour
+        ).aggregate(t=DSum("quantite"))["t"] or 0
+
+        data_entrees.append(round(e, 1))
+        data_sorties.append(round(s_engin + s_div, 1))
+
+    # ── Données graphique 2 : consommation par engin ce mois ──
+    engins_labels, engins_data, engins_colors = [], [], []
+    palette = [
+        "#1A3A6B","#2e5ba8","#8B0000","#FFC000","#1a7a3c",
+        "#6c3483","#117a65","#b7950b","#922b21","#1f618d",
+    ]
+    engins_stats = RavitaillementEngin.objects.filter(
+        date__month=mois, date__year=annee
+    ).values("engin__id_engin").annotate(
+        total=DSum("qte_donnee")
+    ).order_by("-total")[:10]
+
+    for i, item in enumerate(engins_stats):
+        engins_labels.append(item["engin__id_engin"])
+        engins_data.append(round(item["total"] or 0, 1))
+        engins_colors.append(palette[i % len(palette)])
+
+    # ── Données graphique 3 : évolution stock 30 jours ──
+    stock_labels, stock_data = [], []
+    stock_courant = 0
+    # Calcul simplifié : partir du stock actuel et remonter
+    ops_30 = list(OperationStock.objects.filter(
+        date__gte=date_debut_30
+    ).order_by("date", "cree_le"))
+
+    # Reconstituer l'évolution jour par jour
+    stock_avant_periode = stock
+    for op in reversed(ops_30):
+        if op.type == "entree":
+            stock_avant_periode -= op.quantite
+        else:
+            stock_avant_periode += op.quantite
+
+    s = stock_avant_periode
+    ops_idx = 0
+    for i in range(30):
+        jour = date_debut_30 + timedelta(days=i)
+        while ops_idx < len(ops_30) and ops_30[ops_idx].date <= jour:
+            op = ops_30[ops_idx]
+            if op.type == "entree":
+                s += op.quantite
+            else:
+                s -= op.quantite
+            ops_idx += 1
+        stock_labels.append(jour.strftime("%d/%m"))
+        stock_data.append(round(s, 1))
 
     ctx = {
         "stock":          stock,
@@ -147,6 +219,16 @@ def dashboard(request):
         "dernieres_ops":  dernieres_ops,
         "derniers_ravs":  derniers_ravs,
         "mois_label":     now.strftime("%B %Y"),
+        # Données graphiques (JSON)
+        "chart_labels_30":    _json.dumps(labels_30),
+        "chart_entrees":      _json.dumps(data_entrees),
+        "chart_sorties":      _json.dumps(data_sorties),
+        "chart_engins_labels":_json.dumps(engins_labels),
+        "chart_engins_data":  _json.dumps(engins_data),
+        "chart_engins_colors":_json.dumps(engins_colors),
+        "chart_stock_labels": _json.dumps(stock_labels),
+        "chart_stock_data":   _json.dumps(stock_data),
+        "seuil_json":         float(Parametre.get("seuil_alerte_stock", "500")),
     }
     return render(request, "core/dashboard.html", ctx)
 
