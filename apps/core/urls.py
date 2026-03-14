@@ -31,6 +31,11 @@ urlpatterns = [
     path("engins/<str:id_engin>/modifier/",  views.modifier_engin,   name="modifier_engin"),
     path("engins/<str:id_engin>/toggle/",    views.toggle_engin,     name="toggle_engin"),
     path("engins/<str:id_engin>/supprimer/", views.supprimer_engin,  name="supprimer_engin"),
+    # Rapports PDF
+    path("rapports/",                  views.rapports,             name="rapports"),
+    path("rapports/entrees.pdf",       views.pdf_rapport_entrees,  name="pdf_rapport_entrees"),
+    path("rapports/attestation.pdf",   views.pdf_attestation,      name="pdf_attestation"),
+    path("rapports/mensuel.pdf",       views.pdf_rapport_mensuel,  name="pdf_rapport_mensuel"),
     # Paramètres
     path("parametres/",     views.parametres,     name="parametres"),
     path("api/parametres/", views.api_parametres, name="api_parametres"),

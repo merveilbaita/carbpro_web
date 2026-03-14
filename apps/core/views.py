@@ -1128,3 +1128,70 @@ def api_parametres(request):
         "seuil_alerte_stock": float(Parametre.get("seuil_alerte_stock", "500")),
         "unite":             Parametre.get("unite", "L"),
     })
+
+
+# ── Rapports PDF ──────────────────────────────────────────────
+
+@login_required
+def rapports(request):
+    """Page principale des rapports — sélection mois/année."""
+    now    = timezone.localdate()
+    annees = range(2024, now.year + 2)
+    ctx = {
+        "mois":   request.GET.get("mois", now.month),
+        "annee":  request.GET.get("annee", now.year),
+        "annees": annees,
+        "mois_choices": [
+            (1,"Janvier"),(2,"Février"),(3,"Mars"),(4,"Avril"),
+            (5,"Mai"),(6,"Juin"),(7,"Juillet"),(8,"Août"),
+            (9,"Septembre"),(10,"Octobre"),(11,"Novembre"),(12,"Décembre"),
+        ],
+    }
+    return render(request, "core/rapports.html", ctx)
+
+
+def _pdf_response(buf, filename):
+    """Retourne une HttpResponse PDF téléchargeable."""
+    response = HttpResponse(buf.read(), content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
+def pdf_rapport_entrees(request):
+    mois  = request.GET.get("mois",  timezone.localdate().month)
+    annee = request.GET.get("annee", timezone.localdate().year)
+    try:
+        from .pdf_service import generer_rapport_entrees
+        buf = generer_rapport_entrees(mois, annee)
+        return _pdf_response(buf, f"rapport_entrees_{annee}_{int(mois):02d}.pdf")
+    except Exception as e:
+        messages.error(request, f"❌ Erreur génération PDF : {e}")
+        return redirect("rapports")
+
+
+@login_required
+def pdf_attestation(request):
+    mois       = request.GET.get("mois",        timezone.localdate().month)
+    annee      = request.GET.get("annee",       timezone.localdate().year)
+    responsable = request.GET.get("responsable", "")
+    try:
+        from .pdf_service import generer_attestation
+        buf = generer_attestation(mois, annee, responsable)
+        return _pdf_response(buf, f"attestation_{annee}_{int(mois):02d}.pdf")
+    except Exception as e:
+        messages.error(request, f"❌ Erreur génération PDF : {e}")
+        return redirect("rapports")
+
+
+@login_required
+def pdf_rapport_mensuel(request):
+    mois  = request.GET.get("mois",  timezone.localdate().month)
+    annee = request.GET.get("annee", timezone.localdate().year)
+    try:
+        from .pdf_service import generer_rapport_mensuel
+        buf = generer_rapport_mensuel(mois, annee)
+        return _pdf_response(buf, f"rapport_mensuel_{annee}_{int(mois):02d}.pdf")
+    except Exception as e:
+        messages.error(request, f"❌ Erreur génération PDF : {e}")
+        return redirect("rapports")
