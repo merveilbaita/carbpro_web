@@ -1,12 +1,41 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from django.utils import timezone
 from django.db.models import Sum
-import json, openpyxl
+from django.views.decorators.cache import cache_control
+from django.views.decorators.http import require_GET
+import json, openpyxl, os
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import date
+
+
+# ── PWA : Service Worker servi depuis la racine ───────────────
+@require_GET
+@cache_control(max_age=0, no_cache=True, no_store=True, must_revalidate=True)
+def service_worker(request):
+    sw_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        '..', 'static', 'sw.js'
+    )
+    # Chercher dans staticfiles (production) ou static (dev)
+    for candidate in [
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), 'staticfiles', 'sw.js'),
+        os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__)))), 'static', 'sw.js'),
+    ]:
+        if os.path.exists(candidate):
+            with open(candidate, 'r') as f:
+                return HttpResponse(f.read(),
+                    content_type='application/javascript')
+    return HttpResponse('// SW not found', content_type='application/javascript')
+
+
+# ── PWA : Page offline ────────────────────────────────────────
+def offline(request):
+    return render(request, 'core/offline.html')
 
 from .models import (
     OperationStock, RavitaillementEngin,

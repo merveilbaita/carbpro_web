@@ -10,4 +10,7 @@ urlpatterns = [
     path("export-excel/",         views.export_excel,          name="export_excel"),
     path("import-excel/",         views.import_excel,          name="import_excel"),
     path("engins/",               views.liste_engins,          name="liste_engins"),
+    # PWA
+    path("sw.js",                 views.service_worker,        name="service_worker"),
+    path("offline/",              views.offline,               name="offline"),
 ]
