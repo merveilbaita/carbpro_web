@@ -32,12 +32,10 @@
     <strong>Restez informé en temps réel</strong><br>
     <small>Activez les notifications pour recevoir les alertes carburant sur cet appareil.</small>
   </div>
-  <button onclick="subscribePush(); document.getElementById('notif-dashboard-card').style.display='none'"
-          class="btn btn-primary btn-sm flex-shrink-0">
+  <button id="notif-activer-btn" class="btn btn-primary btn-sm flex-shrink-0">
     <i class="bi bi-bell"></i> Activer
   </button>
-  <button onclick="document.getElementById('notif-dashboard-card').style.display='none'"
-          class="btn btn-outline-secondary btn-sm flex-shrink-0">
+  <button id="notif-plus-tard-btn" class="btn btn-outline-secondary btn-sm flex-shrink-0">
     Plus tard
   </button>
 </div>
@@ -182,24 +180,51 @@
 
 {% block extra_js %}
 <script>
+function hideNotifCard() {
+  const card = document.getElementById('notif-dashboard-card');
+  if (card) card.style.display = 'none';
+  sessionStorage.setItem('notif-banner-shown', '1');
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+  // Bouton Activer
+  document.getElementById('notif-activer-btn')?.addEventListener('click', () => {
+    hideNotifCard();
+    // Appeler subscribePush quand notifications.js est prêt
+    if (typeof subscribePush === 'function') {
+      subscribePush();
+    } else {
+      // Attendre que notifications.js soit chargé
+      window.addEventListener('load', () => {
+        if (typeof subscribePush === 'function') subscribePush();
+      });
+    }
+  });
+
+  // Bouton Plus tard
+  document.getElementById('notif-plus-tard-btn')?.addEventListener('click', hideNotifCard);
+
+  // Afficher la carte si conditions remplies
   setTimeout(() => {
     const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
                   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
                          window.navigator.standalone === true;
+
     if (!('PushManager' in window)) return;
     if (isIOS && !isStandalone) return;
     if (Notification.permission === 'denied') return;
     if (sessionStorage.getItem('notif-banner-shown')) return;
+
     navigator.serviceWorker.ready.then(reg => {
       reg.pushManager.getSubscription().then(sub => {
         if (!sub) {
-          document.getElementById('notif-dashboard-card').style.display = 'flex';
+          const card = document.getElementById('notif-dashboard-card');
+          if (card) card.style.display = 'flex';
         }
       });
-    });
-  }, 2000);
+    }).catch(() => {});
+  }, 2500);
 });
 </script>
 {% endblock %}
