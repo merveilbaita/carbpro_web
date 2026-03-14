@@ -19,4 +19,8 @@ urlpatterns = [
     path("utilisateurs/<int:user_id>/modifier/",   views.modifier_utilisateur, name="modifier_utilisateur"),
     path("utilisateurs/<int:user_id>/toggle/",     views.toggle_utilisateur,   name="toggle_utilisateur"),
     path("utilisateurs/<int:user_id>/supprimer/",  views.supprimer_utilisateur,name="supprimer_utilisateur"),
+    # Web Push Notifications
+    path("push/vapid-public-key/", views.push_vapid_public_key, name="push_vapid_public_key"),
+    path("push/subscribe/",        views.push_subscribe,        name="push_subscribe"),
+    path("push/unsubscribe/",      views.push_unsubscribe,      name="push_unsubscribe"),
 ]

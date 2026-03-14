@@ -35,6 +35,29 @@ def create_profile(sender, instance, created, **kwargs):
         UserProfile.objects.get_or_create(user=instance, defaults={"role": role})
 
 
+class PushSubscription(models.Model):
+    """Abonnement Web Push d'un utilisateur sur un appareil."""
+    user      = models.ForeignKey(User, on_delete=models.CASCADE,
+                                   related_name="push_subscriptions")
+    endpoint  = models.TextField(unique=True)
+    p256dh    = models.TextField()
+    auth      = models.TextField()
+    user_agent = models.CharField(max_length=300, blank=True)
+    cree_le   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Abonnement Push"
+
+    def __str__(self):
+        return f"{self.user.username} — {self.endpoint[:60]}..."
+
+    def to_dict(self):
+        return {
+            "endpoint": self.endpoint,
+            "keys": {"p256dh": self.p256dh, "auth": self.auth},
+        }
+
+
 
 TYPES_ENGINS = [
     ("camion_benne",    "Camion Benne"),

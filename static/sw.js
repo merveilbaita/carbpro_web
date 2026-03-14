@@ -182,3 +182,58 @@ async function syncPendingRequests() {
     console.error('[SW] Erreur syncPendingRequests:', err);
   }
 }
+
+
+// ── Web Push : affichage notification reçue ───────────────────
+self.addEventListener('push', event => {
+  if (!event.data) return;
+
+  let payload;
+  try {
+    payload = event.data.json();
+  } catch {
+    payload = { title: 'CarbPro', body: event.data.text() };
+  }
+
+  const options = {
+    body:    payload.body  || '',
+    icon:    payload.icon  || '/static/icons/icon-192.png',
+    badge:   payload.badge || '/static/icons/icon-72.png',
+    tag:     payload.tag   || 'carbpro',
+    data:    payload.data  || {},
+    vibrate: [200, 100, 200],
+    requireInteraction: payload.requireInteraction || false,
+    actions: [
+      { action: 'open',    title: 'Voir',   icon: '/static/icons/icon-72.png' },
+      { action: 'dismiss', title: 'Fermer' },
+    ],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'CarbPro', options)
+  );
+});
+
+// ── Clic sur notification ─────────────────────────────────────
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+
+  if (event.action === 'dismiss') return;
+
+  const url = event.notification.data?.url || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      // Si une fenêtre est déjà ouverte → focus + navigate
+      for (const client of list) {
+        if (client.url.includes(self.location.origin)) {
+          client.focus();
+          client.navigate(url);
+          return;
+        }
+      }
+      // Sinon ouvrir une nouvelle fenêtre
+      return clients.openWindow(url);
+    })
+  );
+});

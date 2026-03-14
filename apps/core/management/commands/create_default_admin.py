@@ -14,6 +14,23 @@ class Command(BaseCommand):
 
         # ── Créer la table UserProfile manuellement si absente ─
         tables = connection.introspection.table_names()
+        # Créer aussi core_pushsubscription si absente
+        if "core_pushsubscription" not in tables:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS core_pushsubscription (
+                        id         SERIAL PRIMARY KEY,
+                        endpoint   TEXT NOT NULL UNIQUE,
+                        p256dh     TEXT NOT NULL,
+                        auth       TEXT NOT NULL,
+                        user_agent VARCHAR(300) NOT NULL DEFAULT '',
+                        cree_le    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                        user_id    INTEGER NOT NULL
+                                   REFERENCES auth_user(id)
+                                   ON DELETE CASCADE
+                    )
+                """)
+
         if "core_userprofile" not in tables:
             self.stdout.write("Création manuelle de core_userprofile...")
             with connection.cursor() as cursor:

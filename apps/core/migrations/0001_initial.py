@@ -123,4 +123,21 @@ class Migration(migrations.Migration):
             ],
             options={'ordering': ['-date', '-cree_le'], 'verbose_name': 'Consommation Diverse'},
         ),
+    
+        migrations.CreateModel(
+            name='PushSubscription',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('endpoint', models.TextField(unique=True)),
+                ('p256dh', models.TextField()),
+                ('auth', models.TextField()),
+                ('user_agent', models.CharField(blank=True, max_length=300)),
+                ('cree_le', models.DateTimeField(auto_now_add=True)),
+                ('user', models.ForeignKey(
+                    on_delete=django.db.models.deletion.CASCADE,
+                    related_name='push_subscriptions',
+                    to=settings.AUTH_USER_MODEL)),
+            ],
+            options={'verbose_name': 'Abonnement Push'},
+        ),
     ]

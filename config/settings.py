@@ -15,7 +15,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "apps.core",
+    "apps.core.apps.CoreConfig",
 ]
 
 MIDDLEWARE = [
@@ -87,3 +87,9 @@ if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SESSION_COOKIE_SECURE   = True
     CSRF_COOKIE_SECURE      = True
+
+# ── Web Push Notifications (VAPID) ───────────────────────────
+VAPID_PUBLIC_KEY  = config("VAPID_PUBLIC_KEY",  default="")
+VAPID_PRIVATE_KEY = config("VAPID_PRIVATE_KEY", default="")
+VAPID_ADMIN_EMAIL = config("VAPID_ADMIN_EMAIL", default="admin@carbpro.com")
+
