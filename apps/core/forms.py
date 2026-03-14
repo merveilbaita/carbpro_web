@@ -142,6 +142,151 @@ class ApproEnginForm(forms.ModelForm):
         return cleaned
 
 
+
+
+# ── Formulaires Gestion Utilisateurs ─────────────────────────
+
+class CreerUtilisateurForm(forms.Form):
+    """Formulaire création d'un nouvel utilisateur."""
+    username   = forms.CharField(
+        max_length=50, label="Identifiant *",
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-lg",
+            "placeholder": "Ex : operateur1",
+            "autocomplete": "off",
+        })
+    )
+    nom_complet = forms.CharField(
+        max_length=100, label="Nom complet *",
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-lg",
+            "placeholder": "Ex : Jean Mukendi",
+        })
+    )
+    email = forms.EmailField(
+        required=False, label="Email",
+        widget=forms.EmailInput(attrs={
+            "class": "form-control",
+            "placeholder": "optionnel",
+        })
+    )
+    role = forms.ChoiceField(
+        choices=[("operateur", "Opérateur"), ("administrateur", "Administrateur")],
+        label="Rôle *",
+        widget=forms.Select(attrs={"class": "form-select form-select-lg"})
+    )
+    password1 = forms.CharField(
+        label="Mot de passe *", min_length=4,
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control form-control-lg",
+            "placeholder": "Min. 4 caractères",
+            "autocomplete": "new-password",
+        })
+    )
+    password2 = forms.CharField(
+        label="Confirmer le mot de passe *",
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control form-control-lg",
+            "placeholder": "Répéter le mot de passe",
+            "autocomplete": "new-password",
+        })
+    )
+
+    def clean_username(self):
+        from django.contrib.auth.models import User
+        username = self.cleaned_data["username"].strip()
+        if User.objects.filter(username=username).exists():
+            raise forms.ValidationError("Cet identifiant est déjà utilisé.")
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get("password1")
+        p2 = cleaned.get("password2")
+        if p1 and p2 and p1 != p2:
+            self.add_error("password2", "Les mots de passe ne correspondent pas.")
+        return cleaned
+
+
+class ModifierUtilisateurForm(forms.Form):
+    """Formulaire modification d'un utilisateur existant."""
+    nom_complet = forms.CharField(
+        max_length=100, label="Nom complet *",
+        widget=forms.TextInput(attrs={"class": "form-control form-control-lg"})
+    )
+    email = forms.EmailField(
+        required=False, label="Email",
+        widget=forms.EmailInput(attrs={"class": "form-control"})
+    )
+    role = forms.ChoiceField(
+        choices=[("operateur", "Opérateur"), ("administrateur", "Administrateur")],
+        label="Rôle *",
+        widget=forms.Select(attrs={"class": "form-select form-select-lg"})
+    )
+    password_nouveau = forms.CharField(
+        required=False, label="Nouveau mot de passe",
+        min_length=4,
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "placeholder": "Laisser vide pour ne pas changer",
+            "autocomplete": "new-password",
+        })
+    )
+    password_confirm = forms.CharField(
+        required=False, label="Confirmer le mot de passe",
+        widget=forms.PasswordInput(attrs={
+            "class": "form-control",
+            "autocomplete": "new-password",
+        })
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get("password_nouveau")
+        p2 = cleaned.get("password_confirm")
+        if p1 and p1 != p2:
+            self.add_error("password_confirm", "Les mots de passe ne correspondent pas.")
+        return cleaned
+
+    """Formulaire consommation diverse (garage, groupe élec…)."""
+
+    class Meta:
+        model  = ConsommationDiverse
+        fields = ["date", "categorie", "quantite", "motif"]
+        widgets = {
+            "date": forms.DateInput(
+                attrs={"type": "date", "class": "form-control form-control-lg"},
+            ),
+            "categorie": forms.Select(
+                attrs={"class": "form-select form-select-lg"}
+            ),
+            "quantite": forms.NumberInput(
+                attrs={
+                    "class": "form-control form-control-lg",
+                    "step": "0.01", "min": "0.01",
+                    "placeholder": "Ex : 50",
+                }
+            ),
+            "motif": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Détail / motif (optionnel)",
+                }
+            ),
+        }
+        labels = {
+            "date":      "Date *",
+            "categorie": "Catégorie *",
+            "quantite":  "Quantité (L) *",
+            "motif":     "Motif / Détail",
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["date"].initial = timezone.localdate()
+        self.fields["motif"].required = False
+
+
 class ConsommationDiverseForm(forms.ModelForm):
     """Formulaire consommation diverse (garage, groupe élec…)."""
 

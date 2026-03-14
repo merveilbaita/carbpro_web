@@ -1,8 +1,40 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
-# ── Constantes ────────────────────────────────────────────────
+ROLES = [
+    ("administrateur", "Administrateur"),
+    ("operateur",      "Opérateur"),
+]
+
+
+class UserProfile(models.Model):
+    """Profil étendu — rôle CarbPro pour chaque utilisateur Django."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE,
+                                 related_name="profile")
+    role = models.CharField(max_length=20, choices=ROLES, default="operateur")
+
+    class Meta:
+        verbose_name = "Profil utilisateur"
+
+    def __str__(self):
+        return f"{self.user.username} ({self.get_role_display()})"
+
+    @property
+    def is_admin(self):
+        return self.role == "administrateur"
+
+
+@receiver(post_save, sender=User)
+def create_profile(sender, instance, created, **kwargs):
+    """Crée automatiquement un profil à chaque nouvel utilisateur."""
+    if created:
+        role = "administrateur" if instance.is_superuser else "operateur"
+        UserProfile.objects.get_or_create(user=instance, defaults={"role": role})
+
+
 
 TYPES_ENGINS = [
     ("camion_benne",    "Camion Benne"),

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}{{ titre }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{% url 'liste_utilisateurs' %}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-12 col-md-7 col-lg-6">
+    <div class="form-card">
+      <h5 class="fw-bold mb-4" style="color:#1A3A6B">
+        <i class="bi bi-person-{% if mode == 'creation' %}plus-fill{% else %}gear-fill{% endif %} me-2"></i>
+        {{ titre }}
+      </h5>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if mode == "creation" %}
+        <!-- Identifiant (création seulement) -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.username.label }}</label>
+          {{ form.username }}
+          {% if form.username.errors %}
+          <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+          {% endif %}
+          <div class="form-text">Utilisé pour se connecter. Ne peut pas être changé ensuite.</div>
+        </div>
+        {% endif %}
+
+        <!-- Nom complet -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.nom_complet.label }}</label>
+          {{ form.nom_complet }}
+          {% if form.nom_complet.errors %}
+          <div class="text-danger small mt-1">{{ form.nom_complet.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        <!-- Email -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.email.label }}</label>
+          {{ form.email }}
+        </div>
+
+        <!-- Rôle -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">{{ form.role.label }}</label>
+          {{ form.role }}
+          <div class="form-text">
+            <strong>Opérateur</strong> : saisie + historique |
+            <strong>Administrateur</strong> : accès complet
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Mots de passe -->
+        {% if mode == "creation" %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.password1.label }}</label>
+          {{ form.password1 }}
+          {% if form.password1.errors %}
+          <div class="text-danger small mt-1">{{ form.password1.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">{{ form.password2.label }}</label>
+          {{ form.password2 }}
+          {% if form.password2.errors %}
+          <div class="text-danger small mt-1">{{ form.password2.errors.0 }}</div>
+          {% endif %}
+        </div>
+
+        {% else %}
+        <!-- Modification : mot de passe optionnel -->
+        <p class="text-muted small mb-3">
+          <i class="bi bi-info-circle"></i>
+          Laisser vide pour conserver le mot de passe actuel.
+        </p>
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.password_nouveau.label }}</label>
+          {{ form.password_nouveau }}
+          {% if form.password_nouveau.errors %}
+          <div class="text-danger small mt-1">{{ form.password_nouveau.errors.0 }}</div>
+          {% endif %}
+        </div>
+        <div class="mb-4">
+          <label class="form-label fw-semibold">{{ form.password_confirm.label }}</label>
+          {{ form.password_confirm }}
+          {% if form.password_confirm.errors %}
+          <div class="text-danger small mt-1">{{ form.password_confirm.errors.0 }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg">
+          <i class="bi bi-check-circle me-2"></i>
+          {% if mode == "creation" %}Créer l'utilisateur{% else %}Enregistrer les modifications{% endif %}
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

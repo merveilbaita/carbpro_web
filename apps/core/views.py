@@ -1,14 +1,47 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.http import HttpResponse, FileResponse
 from django.utils import timezone
 from django.db.models import Sum
 from django.views.decorators.cache import cache_control
 from django.views.decorators.http import require_GET
+from functools import wraps
 import json, openpyxl, os
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import date
+
+from .models import (
+    OperationStock, RavitaillementEngin,
+    ConsommationDiverse, Engin, Parametre, UserProfile
+)
+from .forms import (
+    RavitaillementStockForm, ApproEnginForm, ConsommationDiverseForm,
+    CreerUtilisateurForm, ModifierUtilisateurForm,
+)
+
+
+# ── Décorateur rôle admin ─────────────────────────────────────
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        try:
+            role = request.user.profile.role
+        except Exception:
+            role = "operateur"
+        if role != "administrateur" and not request.user.is_superuser:
+            messages.error(request, "⛔ Accès réservé aux administrateurs.")
+            return redirect("dashboard")
+        return view_func(request, *args, **kwargs)
+    return login_required(wrapper)
+
+
+def get_user_role(user):
+    try:
+        return user.profile.role
+    except Exception:
+        return "operateur"
 
 
 # ── PWA : Service Worker servi depuis la racine ───────────────
@@ -39,10 +72,11 @@ def offline(request):
 
 from .models import (
     OperationStock, RavitaillementEngin,
-    ConsommationDiverse, Engin, Parametre
+    ConsommationDiverse, Engin, Parametre, UserProfile
 )
 from .forms import (
-    RavitaillementStockForm, ApproEnginForm, ConsommationDiverseForm
+    RavitaillementStockForm, ApproEnginForm, ConsommationDiverseForm,
+    CreerUtilisateurForm, ModifierUtilisateurForm,
 )
 
 
@@ -519,3 +553,147 @@ def import_excel(request):
             os.unlink(tmp_path)
 
     return render(request, "core/import_excel.html", {"rapport": rapport})
+
+
+# ── Gestion Utilisateurs ──────────────────────────────────────
+
+@admin_required
+def liste_utilisateurs(request):
+    users = User.objects.select_related("profile").order_by("username")
+    ctx = {
+        "users":       users,
+        "total":       users.count(),
+        "nb_admins":   users.filter(profile__role="administrateur").count(),
+        "nb_operateurs": users.filter(profile__role="operateur").count(),
+    }
+    return render(request, "core/utilisateurs/liste.html", ctx)
+
+
+@admin_required
+def creer_utilisateur(request):
+    if request.method == "POST":
+        form = CreerUtilisateurForm(request.POST)
+        if form.is_valid():
+            d = form.cleaned_data
+            # Séparer nom complet en first/last name
+            parts = d["nom_complet"].strip().split(" ", 1)
+            first = parts[0]
+            last  = parts[1] if len(parts) > 1 else ""
+
+            user = User.objects.create_user(
+                username   = d["username"],
+                password   = d["password1"],
+                email      = d.get("email", ""),
+                first_name = first,
+                last_name  = last,
+            )
+            # Profil rôle
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            profile.role = d["role"]
+            profile.save()
+
+            # Si admin → is_staff aussi
+            if d["role"] == "administrateur":
+                user.is_staff = True
+                user.save()
+
+            messages.success(request,
+                f"✅ Utilisateur '{user.username}' créé avec le rôle {profile.get_role_display()}.")
+            return redirect("liste_utilisateurs")
+    else:
+        form = CreerUtilisateurForm()
+
+    return render(request, "core/utilisateurs/form.html", {
+        "form":  form,
+        "titre": "Créer un utilisateur",
+        "mode":  "creation",
+    })
+
+
+@admin_required
+def modifier_utilisateur(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+    profile, _ = UserProfile.objects.get_or_create(user=target)
+
+    # Empêcher de modifier le superuser si on n'est pas superuser
+    if target.is_superuser and not request.user.is_superuser:
+        messages.error(request, "⛔ Vous ne pouvez pas modifier le superadmin.")
+        return redirect("liste_utilisateurs")
+
+    if request.method == "POST":
+        form = ModifierUtilisateurForm(request.POST)
+        if form.is_valid():
+            d = form.cleaned_data
+            parts = d["nom_complet"].strip().split(" ", 1)
+            target.first_name = parts[0]
+            target.last_name  = parts[1] if len(parts) > 1 else ""
+            target.email      = d.get("email", "")
+
+            if d.get("password_nouveau"):
+                target.set_password(d["password_nouveau"])
+
+            # Rôle
+            profile.role = d["role"]
+            profile.save()
+            target.is_staff = (d["role"] == "administrateur")
+            target.save()
+
+            messages.success(request,
+                f"✅ Utilisateur '{target.username}' mis à jour.")
+            return redirect("liste_utilisateurs")
+    else:
+        form = ModifierUtilisateurForm(initial={
+            "nom_complet": target.get_full_name(),
+            "email":       target.email,
+            "role":        profile.role,
+        })
+
+    return render(request, "core/utilisateurs/form.html", {
+        "form":   form,
+        "titre":  f"Modifier — {target.username}",
+        "mode":   "modification",
+        "target": target,
+    })
+
+
+@admin_required
+def toggle_utilisateur(request, user_id):
+    """Active ou désactive un utilisateur."""
+    target = get_object_or_404(User, pk=user_id)
+
+    # Protections
+    if target == request.user:
+        messages.error(request, "⛔ Vous ne pouvez pas vous désactiver vous-même.")
+        return redirect("liste_utilisateurs")
+    if target.is_superuser:
+        messages.error(request, "⛔ Impossible de désactiver le superadmin.")
+        return redirect("liste_utilisateurs")
+
+    target.is_active = not target.is_active
+    target.save()
+
+    etat = "activé" if target.is_active else "désactivé"
+    messages.success(request, f"✅ Utilisateur '{target.username}' {etat}.")
+    return redirect("liste_utilisateurs")
+
+
+@admin_required
+def supprimer_utilisateur(request, user_id):
+    target = get_object_or_404(User, pk=user_id)
+
+    if target == request.user:
+        messages.error(request, "⛔ Vous ne pouvez pas supprimer votre propre compte.")
+        return redirect("liste_utilisateurs")
+    if target.is_superuser:
+        messages.error(request, "⛔ Impossible de supprimer le superadmin.")
+        return redirect("liste_utilisateurs")
+
+    if request.method == "POST":
+        username = target.username
+        target.delete()
+        messages.success(request, f"✅ Utilisateur '{username}' supprimé.")
+        return redirect("liste_utilisateurs")
+
+    return render(request, "core/utilisateurs/confirmer_suppression.html", {
+        "target": target
+    })

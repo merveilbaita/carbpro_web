@@ -13,4 +13,10 @@ urlpatterns = [
     # PWA
     path("sw.js",                 views.service_worker,        name="service_worker"),
     path("offline/",              views.offline,               name="offline"),
+    # Gestion utilisateurs
+    path("utilisateurs/",                          views.liste_utilisateurs,   name="liste_utilisateurs"),
+    path("utilisateurs/creer/",                    views.creer_utilisateur,    name="creer_utilisateur"),
+    path("utilisateurs/<int:user_id>/modifier/",   views.modifier_utilisateur, name="modifier_utilisateur"),
+    path("utilisateurs/<int:user_id>/toggle/",     views.toggle_utilisateur,   name="toggle_utilisateur"),
+    path("utilisateurs/<int:user_id>/supprimer/",  views.supprimer_utilisateur,name="supprimer_utilisateur"),
 ]
