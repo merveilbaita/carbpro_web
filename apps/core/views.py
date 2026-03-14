@@ -961,18 +961,22 @@ def supprimer_engin(request, id_engin):
 # ── Historique — édition et suppression ───────────────────────
 
 def _recalc_stocks():
-    """Recalcule tous les stock_apres après modification (bulk_update)."""
-    stock = 0
-    ops = []
-    for op in OperationStock.objects.order_by("date", "cree_le"):
-        if op.type == "entree":
-            stock += op.quantite
-        else:
-            stock -= op.quantite
-        op.stock_apres = stock
-        ops.append(op)
-    if ops:
-        OperationStock.objects.bulk_update(ops, ["stock_apres"], batch_size=500)
+    """Recalcule stock_apres via SQL window function — zéro mémoire Python."""
+    from django.db import connection
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            UPDATE core_operationstock AS op
+            SET stock_apres = sub.cumul
+            FROM (
+                SELECT
+                    id,
+                    SUM(
+                        CASE WHEN type = 'entree' THEN quantite ELSE -quantite END
+                    ) OVER (ORDER BY date, cree_le ROWS UNBOUNDED PRECEDING) AS cumul
+                FROM core_operationstock
+            ) AS sub
+            WHERE op.id = sub.id
+        """)
 
 
 # ── Opération Stock ───────────────────────────────────────────

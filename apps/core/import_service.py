@@ -421,17 +421,22 @@ def importer_depuis_excel(filepath, operateur=None):
 
 
 def _recalculer_stocks():
-    """Recalcule stock_apres pour toutes les OperationStock (bulk_update)."""
-    from .models import OperationStock
-    stock = 0
-    ops_to_update = []
-    for op in OperationStock.objects.order_by("date", "cree_le"):
-        if op.type == "entree":
-            stock += op.quantite
-        else:
-            stock -= op.quantite
-        op.stock_apres = stock
-        ops_to_update.append(op)
-    # Un seul aller-retour base de données
-    if ops_to_update:
-        OperationStock.objects.bulk_update(ops_to_update, ["stock_apres"], batch_size=500)
+    """
+    Recalcule stock_apres via SQL pur — sans charger les objets en mémoire.
+    Utilise une window function PostgreSQL pour la somme cumulée.
+    """
+    from django.db import connection
+    with connection.cursor() as cursor:
+        cursor.execute("""
+            UPDATE core_operationstock AS op
+            SET stock_apres = sub.cumul
+            FROM (
+                SELECT
+                    id,
+                    SUM(
+                        CASE WHEN type = 'entree' THEN quantite ELSE -quantite END
+                    ) OVER (ORDER BY date, cree_le ROWS UNBOUNDED PRECEDING) AS cumul
+                FROM core_operationstock
+            ) AS sub
+            WHERE op.id = sub.id
+        """)
