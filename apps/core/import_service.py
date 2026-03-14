@@ -292,9 +292,6 @@ def importer_depuis_excel(filepath, operateur=None):
         except Exception as ex:
             rapport["erreurs"].append(f"Entrée stock {e['date']} : {ex}")
 
-    # ── Recalculer stock_apres pour toutes les opérations ─────
-    _recalculer_stocks()
-
     # ── 2. Consommations diverses ─────────────────────────────
     for d in analyse["consommations_diverses"]:
         try:
@@ -424,13 +421,17 @@ def importer_depuis_excel(filepath, operateur=None):
 
 
 def _recalculer_stocks():
-    """Recalcule stock_apres pour toutes les OperationStock."""
+    """Recalcule stock_apres pour toutes les OperationStock (bulk_update)."""
     from .models import OperationStock
     stock = 0
+    ops_to_update = []
     for op in OperationStock.objects.order_by("date", "cree_le"):
         if op.type == "entree":
             stock += op.quantite
         else:
             stock -= op.quantite
         op.stock_apres = stock
-        op.save(update_fields=["stock_apres"])
+        ops_to_update.append(op)
+    # Un seul aller-retour base de données
+    if ops_to_update:
+        OperationStock.objects.bulk_update(ops_to_update, ["stock_apres"], batch_size=500)
