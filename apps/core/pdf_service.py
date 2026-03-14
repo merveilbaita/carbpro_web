@@ -279,10 +279,10 @@ def generer_attestation(mois, annee, responsable=""):
         ["DÉSIGNATION", "VALEUR"],
         ["Période", f"{nom_mois} {annee}"],
         ["Total Entrées", fmt(entrees)],
-        ["Total Sorties", fmt(sorties)],
-        ["Bilan Net (Entrées − Sorties)", fmt(entrees - sorties)],
-        ["Stock en fin de période", fmt(stock_fin)],
-        ["Nombre d'opérations", str(nb_ops)],
+        #["Total Sorties", fmt(sorties)],
+        #["Bilan Net (Entrées − Sorties)", fmt(entrees - sorties)],
+        #["Stock en fin de période", fmt(stock_fin)],
+        #["Nombre d'opérations", str(nb_ops)],
         ["Date de génération", datetime.now().strftime("%d/%m/%Y")],
     ]
     dt = Table(data_t, colWidths=[10*cm, 6*cm])
