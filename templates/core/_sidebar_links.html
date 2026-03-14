@@ -38,6 +38,10 @@
      class="nav-link {% if 'utilisateur' in request.resolver_match.url_name %}active{% endif %}">
     <i class="bi bi-people-fill"></i> Utilisateurs
   </a>
+  <a href="{% url 'parametres' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'parametres' %}active{% endif %}">
+    <i class="bi bi-gear-fill"></i> Paramètres
+  </a>
   {% endif %}
   <a href="{% url 'gestion_engins' %}"
      class="nav-link {% if 'engin' in request.resolver_match.url_name %}active{% endif %}">

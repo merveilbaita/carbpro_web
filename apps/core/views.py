@@ -139,6 +139,8 @@ def dashboard(request):
     ctx = {
         "stock":          stock,
         "stock_negatif":  stock < 0,
+        "stock_bas":      0 < stock <= float(Parametre.get("seuil_alerte_stock", "500")),
+        "seuil":          float(Parametre.get("seuil_alerte_stock", "500")),
         "entrees_mois":   entrees_mois,
         "sorties_mois":   sorties_mois,
         "nb_engins":      nb_engins,
@@ -1019,4 +1021,109 @@ def delete_consommation_diverse(request, pk):
     return render(request, "core/historique/confirmer_suppression.html", {
         "objet": f"la consommation {div.categorie} du {div.date.strftime('%d/%m/%Y')} ({div.quantite:.0f} L)",
         "retour_url": "historique",
+    })
+
+
+# ── Paramètres ────────────────────────────────────────────────
+
+import base64
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+
+@admin_required
+def parametres(request):
+    from .forms import ParametresForm
+
+    # Charger les valeurs actuelles
+    def get_p(cle, defaut=""):
+        return Parametre.get(cle, defaut)
+
+    # Chemin logo actuel
+    logo_b64 = get_p("logo_base64", "")
+    logo_existe = bool(logo_b64)
+
+    if request.method == "POST":
+        form = ParametresForm(request.POST, request.FILES)
+        if form.is_valid():
+            d = form.cleaned_data
+
+            # Sauvegarder les paramètres texte
+            for cle, val in [
+                ("nom_entreprise",    d["nom_entreprise"]),
+                ("unite",             d["unite"]),
+                ("seuil_alerte_stock", str(d["seuil_alerte_stock"])),
+            ]:
+                obj, _ = Parametre.objects.get_or_create(cle=cle)
+                obj.valeur = val
+                obj.save()
+
+            # Gérer le logo
+            if d.get("supprimer_logo"):
+                Parametre.objects.filter(cle="logo_base64").delete()
+                messages.success(request, "✅ Logo supprimé.")
+
+            elif d.get("logo"):
+                fichier = d["logo"]
+                # Vérifier taille (max 2MB)
+                if fichier.size > 2 * 1024 * 1024:
+                    messages.error(request, "❌ Logo trop grand — max 2MB.")
+                else:
+                    # Stocker en base64 dans Parametre
+                    logo_data = base64.b64encode(fichier.read()).decode()
+                    ext = fichier.name.rsplit(".", 1)[-1].lower()
+                    mime = "image/jpeg" if ext in ("jpg","jpeg") else "image/png"
+                    obj, _ = Parametre.objects.get_or_create(cle="logo_base64")
+                    obj.valeur = f"data:{mime};base64,{logo_data}"
+                    obj.save()
+                    # Aussi sauvegarder en fichier pour les PDF
+                    _sauvegarder_logo_fichier(fichier)
+                    messages.success(request, "✅ Paramètres enregistrés.")
+            else:
+                messages.success(request, "✅ Paramètres enregistrés.")
+
+            return redirect("parametres")
+    else:
+        form = ParametresForm(initial={
+            "nom_entreprise":    get_p("nom_entreprise", "Mont Gabaon Construction SARLU"),
+            "unite":             get_p("unite", "L"),
+            "seuil_alerte_stock": float(get_p("seuil_alerte_stock", "500")),
+        })
+
+    ctx = {
+        "form":        form,
+        "logo_existe": logo_existe,
+        "logo_b64":    logo_b64,
+        "params": {
+            "nom_entreprise":    get_p("nom_entreprise", "Mont Gabaon Construction SARLU"),
+            "unite":             get_p("unite", "L"),
+            "seuil_alerte_stock": get_p("seuil_alerte_stock", "500"),
+        }
+    }
+    return render(request, "core/parametres.html", ctx)
+
+
+def _sauvegarder_logo_fichier(fichier):
+    """Sauvegarde le logo en fichier pour usage dans les PDFs."""
+    import sys, os
+    if getattr(sys, "frozen", False):
+        base = os.path.dirname(sys.executable)
+    else:
+        base = os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))
+    assets_dir = os.path.join(base, "assets")
+    os.makedirs(assets_dir, exist_ok=True)
+    logo_path = os.path.join(assets_dir, "logo_entreprise.png")
+    fichier.seek(0)
+    with open(logo_path, "wb") as f:
+        f.write(fichier.read())
+
+
+@login_required
+def api_parametres(request):
+    """API JSON pour récupérer les paramètres publics."""
+    from django.http import JsonResponse
+    return JsonResponse({
+        "nom_entreprise":    Parametre.get("nom_entreprise", "Mont Gabaon Construction SARLU"),
+        "seuil_alerte_stock": float(Parametre.get("seuil_alerte_stock", "500")),
+        "unite":             Parametre.get("unite", "L"),
     })

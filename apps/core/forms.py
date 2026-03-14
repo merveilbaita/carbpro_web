@@ -436,3 +436,39 @@ class EditConsommationDiverseForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["motif"].required = False
+
+
+# ── Formulaire Paramètres ─────────────────────────────────────
+
+class ParametresForm(forms.Form):
+    nom_entreprise = forms.CharField(
+        max_length=200, label="Nom de l'entreprise *",
+        widget=forms.TextInput(attrs={
+            "class": "form-control form-control-lg",
+            "placeholder": "Ex: Mont Gabaon Construction SARLU",
+        })
+    )
+    unite = forms.ChoiceField(
+        label="Unité de mesure *",
+        choices=[("L", "Litres (L)"), ("litres", "litres")],
+        widget=forms.Select(attrs={"class": "form-select"})
+    )
+    seuil_alerte_stock = forms.FloatField(
+        label="Seuil d'alerte stock (L) *",
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control",
+            "step": "50", "min": "0",
+            "placeholder": "Ex: 500",
+        })
+    )
+    logo = forms.ImageField(
+        required=False,
+        label="Logo entreprise (.png, .jpg)",
+        widget=forms.FileInput(attrs={"class": "form-control", "accept": "image/*"})
+    )
+    supprimer_logo = forms.BooleanField(
+        required=False,
+        label="Supprimer le logo actuel",
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"})
+    )

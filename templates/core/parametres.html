@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Paramètres{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="fw-bold mb-0" style="color:#1A3A6B">
+    <i class="bi bi-gear-fill"></i> Paramètres de l'application
+  </h5>
+</div>
+
+<div class="row g-4">
+
+  <!-- ── Formulaire paramètres ──────────────────────────────── -->
+  <div class="col-12 col-lg-7">
+    <div class="form-card">
+      <h6 class="fw-bold mb-4" style="color:#1A3A6B">
+        <i class="bi bi-building me-2"></i>Informations entreprise
+      </h6>
+
+      <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <!-- Nom entreprise -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.nom_entreprise.label }}</label>
+          {{ form.nom_entreprise }}
+          {% if form.nom_entreprise.errors %}
+          <div class="text-danger small mt-1">{{ form.nom_entreprise.errors.0 }}</div>
+          {% endif %}
+          <div class="form-text">Apparaît sur les rapports PDF et l'attestation.</div>
+        </div>
+
+        <!-- Unité -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.unite.label }}</label>
+          {{ form.unite }}
+        </div>
+
+        <!-- Seuil alerte stock -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">{{ form.seuil_alerte_stock.label }}</label>
+          <div class="input-group">
+            {{ form.seuil_alerte_stock }}
+            <span class="input-group-text">L</span>
+          </div>
+          {% if form.seuil_alerte_stock.errors %}
+          <div class="text-danger small mt-1">{{ form.seuil_alerte_stock.errors.0 }}</div>
+          {% endif %}
+          <div class="form-text">
+            Une alerte s'affiche quand le stock descend sous ce seuil.
+            Actuellement : <strong>{{ params.seuil_alerte_stock }} L</strong>
+          </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- Logo -->
+        <h6 class="fw-bold mb-3" style="color:#1A3A6B">
+          <i class="bi bi-image me-2"></i>Logo entreprise
+        </h6>
+
+        {% if logo_existe %}
+        <div class="mb-3 text-center">
+          <div class="p-3 bg-dark rounded d-inline-block mb-2">
+            <img src="{{ logo_b64 }}" alt="Logo actuel"
+                 style="max-height:80px;max-width:300px;object-fit:contain">
+          </div>
+          <div class="small text-muted">Logo actuel</div>
+          <div class="form-check mt-2 d-inline-flex align-items-center gap-2">
+            {{ form.supprimer_logo }}
+            <label class="form-check-label text-danger fw-semibold" for="{{ form.supprimer_logo.id_for_label }}">
+              {{ form.supprimer_logo.label }}
+            </label>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">
+            {% if logo_existe %}Remplacer le logo{% else %}{{ form.logo.label }}{% endif %}
+          </label>
+          {{ form.logo }}
+          <div class="form-text">
+            Format PNG ou JPG recommandé. Max 2 MB.
+            Ce logo apparaîtra sur les rapports PDF.
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100 btn-lg">
+          <i class="bi bi-check-circle me-2"></i>Enregistrer les paramètres
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Résumé paramètres actuels ─────────────────────────── -->
+  <div class="col-12 col-lg-5">
+
+    <!-- Paramètres actuels -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header fw-bold py-3" style="background:#1A3A6B;color:white">
+        <i class="bi bi-info-circle"></i> Paramètres actuels
+      </div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <tbody>
+            <tr>
+              <td class="fw-semibold text-muted small">Entreprise</td>
+              <td class="fw-bold">{{ params.nom_entreprise }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold text-muted small">Unité</td>
+              <td>{{ params.unite }}</td>
+            </tr>
+            <tr>
+              <td class="fw-semibold text-muted small">Seuil alerte</td>
+              <td>
+                <span class="badge bg-warning text-dark">
+                  {{ params.seuil_alerte_stock }} L
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td class="fw-semibold text-muted small">Logo</td>
+              <td>
+                {% if logo_existe %}
+                <span class="badge bg-success">Défini</span>
+                {% else %}
+                <span class="badge bg-secondary">Aucun</span>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Info seuil stock -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header fw-bold py-3" style="background:#8B0000;color:white">
+        <i class="bi bi-exclamation-triangle-fill"></i> Alerte stock bas
+      </div>
+      <div class="card-body small text-muted">
+        <p class="mb-2">Quand le stock descend sous le seuil :</p>
+        <ul class="mb-0">
+          <li>Bannière orange sur le dashboard</li>
+          <li>Carte KPI en rouge</li>
+          <li>Notification push envoyée aux administrateurs</li>
+        </ul>
+        <hr>
+        <p class="mb-0">Si le stock devient <strong class="text-danger">négatif</strong> :</p>
+        <ul class="mb-0 mt-1">
+          <li>Bannière rouge "Débit fournisseur"</li>
+          <li>Notification push urgente</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Infos rapports PDF -->
+    <div class="card border-0 shadow-sm">
+      <div class="card-header fw-bold py-3" style="background:#1A3A6B;color:white">
+        <i class="bi bi-file-pdf"></i> Rapports PDF
+      </div>
+      <div class="card-body small text-muted">
+        <p class="mb-2">Le logo et le nom entreprise apparaissent sur :</p>
+        <ul class="mb-0">
+          <li>Attestation d'harmonisation mensuelle</li>
+          <li>Rapport des entrées de carburant</li>
+          <li>Rapport mensuel complet</li>
+        </ul>
+        <div class="alert alert-info mt-3 mb-0 py-2 small">
+          <i class="bi bi-info-circle"></i>
+          Les modifications sont appliquées aux prochains PDF générés.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

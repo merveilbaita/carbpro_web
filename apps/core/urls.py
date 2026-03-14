@@ -31,6 +31,9 @@ urlpatterns = [
     path("engins/<str:id_engin>/modifier/",  views.modifier_engin,   name="modifier_engin"),
     path("engins/<str:id_engin>/toggle/",    views.toggle_engin,     name="toggle_engin"),
     path("engins/<str:id_engin>/supprimer/", views.supprimer_engin,  name="supprimer_engin"),
+    # Paramètres
+    path("parametres/",     views.parametres,     name="parametres"),
+    path("api/parametres/", views.api_parametres, name="api_parametres"),
     # Web Push Notifications
     path("push/vapid-public-key/", views.push_vapid_public_key, name="push_vapid_public_key"),
     path("push/subscribe/",        views.push_subscribe,        name="push_subscribe"),
