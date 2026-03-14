@@ -254,10 +254,8 @@ def analyser_fichier(filepath):
 
 def importer_depuis_excel(filepath, operateur=None):
     """
-    Importe les données Excel dans la base PostgreSQL (modèles Django).
-    Retourne un rapport dict avec les compteurs et erreurs.
+    Importe les données Excel via bulk_create — optimisé pour éviter les timeouts.
     """
-    from django.utils import timezone
     from .models import Engin, OperationStock, RavitaillementEngin, ConsommationDiverse
 
     analyse = analyser_fichier(filepath)
@@ -271,151 +269,143 @@ def importer_depuis_excel(filepath, operateur=None):
         "erreurs":            list(analyse["erreurs"]),
     }
 
-    # ── 1. Entrées stock ──────────────────────────────────────
+    # ── 1. Entrées stock — bulk_create ────────────────────────
+    dates_existantes = set(
+        OperationStock.objects.filter(type="entree").values_list("date", flat=True)
+    )
+    nouvelles_entrees = []
     for e in analyse["entrees_stock"]:
-        try:
-            existe = OperationStock.objects.filter(
-                type="entree", date=e["date"]
-            ).exists()
-            if existe:
-                rapport["entrees_stock_skip"] += 1
-                continue
-            OperationStock.objects.create(
-                date        = e["date"],
-                type        = "entree",
-                quantite    = e["quantite"],
-                stock_apres = 0,
-                description = f"Import — {e['source']}",
-                operateur   = operateur,
-            )
-            rapport["entrees_stock_ok"] += 1
-        except Exception as ex:
-            rapport["erreurs"].append(f"Entrée stock {e['date']} : {ex}")
+        if e["date"] in dates_existantes:
+            rapport["entrees_stock_skip"] += 1
+            continue
+        nouvelles_entrees.append(OperationStock(
+            date        = e["date"],
+            type        = "entree",
+            quantite    = e["quantite"],
+            stock_apres = 0,
+            description = f"Import — {e['source']}",
+            operateur   = operateur,
+        ))
+    if nouvelles_entrees:
+        OperationStock.objects.bulk_create(nouvelles_entrees, ignore_conflicts=True)
+        rapport["entrees_stock_ok"] = len(nouvelles_entrees)
 
-    # ── 2. Consommations diverses ─────────────────────────────
-    for d in analyse["consommations_diverses"]:
-        try:
-            ConsommationDiverse.objects.create(
-                date        = d["date"],
-                categorie   = d["categorie"],
-                quantite    = d["qte"],
-                motif       = f"Import — {d['motif']}" if d["motif"] else "Import",
-                operateur   = operateur,
-                stock_apres = 0,
+    # ── 2. Créer les engins manquants en une passe ────────────
+    ids_existants = set(Engin.objects.values_list("id_engin", flat=True))
+    engins_a_creer = {}
+    for rv in analyse["rav_engins"]:
+        if rv["id_engin"] not in ids_existants and rv["id_engin"] not in engins_a_creer:
+            engins_a_creer[rv["id_engin"]] = Engin(
+                id_engin    = rv["id_engin"],
+                type_engin  = rv["type_interne"],
+                description = f"Importé — {rv['type_excel']}",
+                mode_appro  = rv["mode_appro"],
+                actif       = True,
             )
-            # Créer la sortie stock correspondante
-            OperationStock.objects.create(
-                date        = d["date"],
-                type        = "sortie",
-                quantite    = d["qte"],
-                stock_apres = 0,
-                description = f"Divers import — {d['categorie']}",
-                operateur   = operateur,
-            )
-            rapport["diverses_ok"] += 1
-        except Exception as ex:
-            rapport["erreurs"].append(f"Diverse {d['date']} : {ex}")
+    if engins_a_creer:
+        Engin.objects.bulk_create(list(engins_a_creer.values()), ignore_conflicts=True)
+        rapport["engins_crees"] = list(engins_a_creer.keys())
 
-    # ── 3. Ravitaillements engins ─────────────────────────────
+    # ── 3. Ravitaillements engins — bulk_create ────────────────
+    # Charger tous les engins en mémoire (dict id_engin → objet)
+    engins_map = {e.id_engin: e for e in Engin.objects.all()}
+
+    ravs_a_creer   = []
+    sorties_a_creer = []
+
     for rv in analyse["rav_engins"]:
         try:
-            # Créer l'engin s'il n'existe pas
-            engin, created = Engin.objects.get_or_create(
-                id_engin=rv["id_engin"],
-                defaults={
-                    "type_engin":  rv["type_interne"],
-                    "description": f"Importé — {rv['type_excel']}",
-                    "mode_appro":  rv["mode_appro"],
-                    "actif":       True,
-                }
-            )
-            if created:
-                rapport["engins_crees"].append(rv["id_engin"])
+            engin = engins_map.get(rv["id_engin"])
+            if not engin:
+                continue
 
-            # Calculer statut
             if rv["panne_index"]:
-                statut    = "panne_index"
-                idx_prec  = 0
-                idx_act   = 0
-                taux_reel = None
-                norme_ref = None
+                statut = "panne_index"; idx_prec = idx_act = 0
+                taux_reel = norme_ref = None
                 commentaire = f"[PANNE INDEX] {rv['obs']}".strip()
-
             elif rv["mode_appro"] == "sans_index":
-                statut    = "non_verifie"
-                idx_prec  = 0
-                idx_act   = 0
-                taux_reel = None
-                norme_ref = None
+                statut = "non_verifie"; idx_prec = idx_act = 0
+                taux_reel = norme_ref = None
                 commentaire = rv["obs"]
-
             else:
-                dernier = RavitaillementEngin.objects.filter(
-                    engin=engin
-                ).order_by("-date", "-cree_le").first()
+                idx_prec = rv["index_prec"] or 0
+                idx_act  = rv["index_act"]  or idx_prec
+                diff     = idx_act - idx_prec
+                taux_reel = norme_ref = None
+                statut    = "non_verifie"
+                commentaire = rv["obs"]
+                info = NORMES.get(rv["type_interne"])
+                if info and diff > 0:
+                    unite, norme, seuil_min = info
+                    norme_ref = norme
+                    if unite == "km":
+                        taux_reel = diff / rv["qte"] if rv["qte"] else 0
+                        statut = "anomalie" if seuil_min and taux_reel < seuil_min else "normal"
+                    else:
+                        taux_reel = rv["qte"] / diff if diff else 0
+                        statut = "anomalie" if taux_reel > norme * 1.1 else "normal"
+                if rv["obs"] and "anormal" in rv["obs"].lower():
+                    statut = "anomalie"
 
-                premier = rv["premier_plein"] or (dernier is None)
-
-                if premier:
-                    idx_prec    = rv["index_act"] or 0
-                    idx_act     = rv["index_act"] or 0
-                    statut      = "non_verifie"
-                    taux_reel   = None
-                    norme_ref   = None
-                    commentaire = f"Premier plein — importé. {rv['obs']}".strip(" —")
-                else:
-                    idx_prec = dernier.index_actuel
-                    idx_act  = rv["index_act"] if rv["index_act"] else idx_prec
-                    diff     = idx_act - idx_prec
-                    taux_reel = None
-                    norme_ref = None
-                    statut    = "non_verifie"
-                    commentaire = rv["obs"]
-
-                    info = NORMES.get(rv["type_interne"])
-                    if info and diff > 0:
-                        unite, norme, seuil_min = info
-                        norme_ref = norme
-                        if unite == "km":
-                            taux_reel = diff / rv["qte"] if rv["qte"] else 0
-                            statut = "anomalie" if seuil_min and taux_reel < seuil_min else "normal"
-                        else:
-                            taux_reel = rv["qte"] / diff if diff else 0
-                            statut = "anomalie" if taux_reel > norme * 1.1 else "normal"
-
-                    if rv["obs"] and "anormal" in rv["obs"].lower():
-                        statut = "anomalie"
-
-            # Enregistrer le ravitaillement
-            RavitaillementEngin.objects.create(
+            ravs_a_creer.append(RavitaillementEngin(
                 date             = rv["date"],
                 engin            = engin,
-                index_precedent  = idx_prec or 0,
-                index_actuel     = idx_act  or 0,
-                difference_index = (idx_act or 0) - (idx_prec or 0),
+                index_precedent  = idx_prec,
+                index_actuel     = idx_act,
+                difference_index = idx_act - idx_prec,
                 qte_donnee       = rv["qte"],
                 taux_reel        = taux_reel,
                 norme_ref        = norme_ref,
                 statut           = statut,
                 commentaire      = commentaire or "",
                 operateur        = operateur,
-            )
-            # Sortie stock correspondante
-            OperationStock.objects.create(
+            ))
+            sorties_a_creer.append(OperationStock(
                 date        = rv["date"],
                 type        = "sortie",
                 quantite    = rv["qte"],
                 stock_apres = 0,
                 description = f"Appro {rv['id_engin']} — import",
                 operateur   = operateur,
-            )
-            rapport["rav_ok"] += 1
-
+            ))
         except Exception as ex:
             rapport["erreurs"].append(f"Engin {rv['id_engin']} {rv['date']} : {ex}")
             rapport["rav_skip"] += 1
 
-    # Recalcul final stock_apres
+    if ravs_a_creer:
+        RavitaillementEngin.objects.bulk_create(ravs_a_creer, ignore_conflicts=True)
+        rapport["rav_ok"] = len(ravs_a_creer)
+
+    # ── 4. Consommations diverses — bulk_create ────────────────
+    div_a_creer     = []
+    sorties_div     = []
+    for d in analyse["consommations_diverses"]:
+        div_a_creer.append(ConsommationDiverse(
+            date        = d["date"],
+            categorie   = d["categorie"],
+            quantite    = d["qte"],
+            motif       = f"Import — {d['motif']}" if d["motif"] else "Import",
+            operateur   = operateur,
+            stock_apres = 0,
+        ))
+        sorties_div.append(OperationStock(
+            date        = d["date"],
+            type        = "sortie",
+            quantite    = d["qte"],
+            stock_apres = 0,
+            description = f"Divers import — {d['categorie']}",
+            operateur   = operateur,
+        ))
+    if div_a_creer:
+        ConsommationDiverse.objects.bulk_create(div_a_creer, ignore_conflicts=True)
+        rapport["diverses_ok"] = len(div_a_creer)
+
+    # ── 5. Toutes les sorties en une fois ──────────────────────
+    all_sorties = sorties_a_creer + sorties_div
+    if all_sorties:
+        OperationStock.objects.bulk_create(all_sorties, ignore_conflicts=True)
+
+    # ── 6. Recalcul stock SQL (1 requête) ──────────────────────
     _recalculer_stocks()
     return rapport
 
