@@ -27,8 +27,35 @@ async function initNotifications() {
     return;
   }
 
+  // Détecter iOS non-standalone
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                       window.navigator.standalone === true;
+
+  if (isIOS && !isStandalone) {
+    // iOS en mode navigateur → push impossible, afficher info
+    const btn = document.getElementById('notif-btn');
+    if (btn) {
+      btn.style.display = 'flex';
+      btn.title = 'Installe l'app sur l'écran d'accueil pour activer les notifications';
+      btn.onclick = () => showPushToast(
+        '📲 Pour les notifications sur iPhone : installe l'app via ⬆️ Partager → Sur l'écran d'accueil, puis ouvre-la depuis l'icône.',
+        'warning'
+      );
+      const icon = document.getElementById('notif-icon');
+      if (icon) icon.className = 'bi bi-bell-slash text-warning';
+    }
+    return;
+  }
+
   pushSubscription = await getPushSubscription();
   updateNotifUI(pushSubscription !== null);
+
+  // Sur desktop : proposer les notifications si pas encore abonné
+  if (!isIOS && !pushSubscription && Notification.permission === 'default') {
+    showNotifPromptBanner();
+  }
 }
 
 // ── Demander permission + s'abonner ──────────────────────────
@@ -143,6 +170,40 @@ function showPushToast(msg, type = 'info') {
   } else {
     console.log('[Push]', msg);
   }
+}
+
+// ── Bannière invitation desktop ──────────────────────────────
+function showNotifPromptBanner() {
+  // Ne montrer qu'une fois par session
+  if (sessionStorage.getItem('notif-banner-shown')) return;
+  sessionStorage.setItem('notif-banner-shown', '1');
+
+  const banner = document.createElement('div');
+  banner.id = 'notif-invite-banner';
+  banner.style.cssText = `
+    position:fixed; bottom:4.5rem; left:50%; transform:translateX(-50%);
+    background:#1A3A6B; color:white; padding:.8rem 1.2rem;
+    border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,.3);
+    z-index:9998; display:flex; align-items:center; gap:.8rem;
+    max-width:90vw; font-size:.9rem;
+  `;
+  banner.innerHTML = `
+    <i class="bi bi-bell-fill text-warning fs-5"></i>
+    <span>Activer les notifications pour être alerté en temps réel ?</span>
+    <button onclick="subscribePush(); document.getElementById('notif-invite-banner')?.remove()"
+            style="background:#FFC000; border:none; border-radius:8px;
+                   padding:.3rem .8rem; font-weight:700; color:#000; cursor:pointer; white-space:nowrap">
+      Activer
+    </button>
+    <button onclick="document.getElementById('notif-invite-banner')?.remove()"
+            style="background:transparent; border:none; color:rgba(255,255,255,.7);
+                   cursor:pointer; font-size:1.2rem; padding:0 .2rem">
+      ✕
+    </button>
+  `;
+  document.body.appendChild(banner);
+  // Auto-fermeture après 8 secondes
+  setTimeout(() => banner?.remove(), 8000);
 }
 
 // ── CSRF Token ────────────────────────────────────────────────

@@ -195,6 +195,11 @@ self.addEventListener('push', event => {
     payload = { title: 'CarbPro', body: event.data.text() };
   }
 
+  // Options compatibles iOS (pas d'actions sur iOS)
+  const isIOS = /iphone|ipad|ipod/i.test(
+    (self.navigator && self.navigator.userAgent) || ''
+  );
+
   const options = {
     body:    payload.body  || '',
     icon:    payload.icon  || '/static/icons/icon-192.png',
@@ -202,11 +207,14 @@ self.addEventListener('push', event => {
     tag:     payload.tag   || 'carbpro',
     data:    payload.data  || {},
     vibrate: [200, 100, 200],
-    requireInteraction: payload.requireInteraction || false,
-    actions: [
-      { action: 'open',    title: 'Voir',   icon: '/static/icons/icon-72.png' },
-      { action: 'dismiss', title: 'Fermer' },
-    ],
+    requireInteraction: false,
+    // Actions seulement sur Android/desktop (iOS ne supporte pas)
+    ...(!isIOS && {
+      actions: [
+        { action: 'open',    title: 'Voir' },
+        { action: 'dismiss', title: 'Fermer' },
+      ]
+    }),
   };
 
   event.waitUntil(

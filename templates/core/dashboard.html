@@ -1,5 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Tableau de bord{% endblock %}
+{% block title %}Tableau de bord{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    // Afficher la carte seulement si pas encore abonné et permission non refusée
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                         window.navigator.standalone === true;
+
+    if (!('PushManager' in window)) return;
+    if (isIOS && !isStandalone) return; // iOS non installé
+    if (Notification.permission === 'denied') return;
+    if (sessionStorage.getItem('notif-banner-shown')) return;
+
+    navigator.serviceWorker.ready.then(reg => {
+      reg.pushManager.getSubscription().then(sub => {
+        if (!sub) {
+          document.getElementById('notif-dashboard-card').style.display = 'flex';
+        }
+      });
+    });
+  }, 2000);
+});
+</script>
+{% endblock %}
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
@@ -24,6 +49,24 @@
   </div>
 </div>
 {% endif %}
+
+<!-- ── Invite notification (si pas encore abonné) ───────────── -->
+<div id="notif-dashboard-card" class="alert alert-primary d-flex align-items-center gap-3 mb-3"
+     style="display:none!important">
+  <i class="bi bi-bell-fill fs-4 flex-shrink-0"></i>
+  <div class="flex-grow-1">
+    <strong>Restez informé en temps réel</strong><br>
+    <small>Activez les notifications pour recevoir les alertes carburant sur cet appareil.</small>
+  </div>
+  <button onclick="subscribePush(); document.getElementById('notif-dashboard-card').style.display='none'"
+          class="btn btn-primary btn-sm flex-shrink-0">
+    <i class="bi bi-bell"></i> Activer
+  </button>
+  <button onclick="document.getElementById('notif-dashboard-card').style.display='none'"
+          class="btn btn-outline-secondary btn-sm flex-shrink-0">
+    Plus tard
+  </button>
+</div>
 
 <!-- ── KPI Cards ──────────────────────────────────────────── -->
 <div class="row g-3 mb-4">
