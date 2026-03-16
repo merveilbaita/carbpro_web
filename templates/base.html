@@ -77,16 +77,6 @@
   {% if user.is_authenticated %}
   <div class="d-flex align-items-center gap-2 ms-auto">
     <span id="pending-badge" title="Saisies en attente de sync"></span>
-    <!-- Bouton notifications push -->
-    <button id="notif-btn"
-            style="display:none; background:transparent; border:none;
-                   color:rgba(255,255,255,.85); align-items:center;
-                   gap:.3rem; padding:.25rem .5rem; border-radius:6px;
-                   cursor:pointer; font-size:.85rem;"
-            title="Notifications">
-      <i id="notif-icon" class="bi bi-bell-slash"></i>
-      <span id="notif-text" class="d-none d-lg-inline small"></span>
-    </button>
     <button class="navbar-toggler d-lg-none" type="button"
             data-bs-toggle="offcanvas" data-bs-target="#mobileMenu">
       <span class="navbar-toggler-icon"></span>
@@ -146,7 +136,6 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/js/pwa.js"></script>
-<script src="/static/js/notifications.js"></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

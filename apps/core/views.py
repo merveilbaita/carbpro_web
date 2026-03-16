@@ -793,71 +793,6 @@ def supprimer_utilisateur(request, user_id):
     })
 
 
-# ── Web Push — abonnements ────────────────────────────────────
-
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-
-@login_required
-def push_vapid_public_key(request):
-    """Retourne la clé publique VAPID pour le client JS."""
-    from django.conf import settings
-    return JsonResponse({"publicKey": settings.VAPID_PUBLIC_KEY})
-
-
-@csrf_exempt
-@login_required
-def push_subscribe(request):
-    """Enregistre ou met à jour un abonnement push."""
-    if request.method != "POST":
-        return JsonResponse({"error": "POST requis"}, status=405)
-
-    try:
-        data     = json.loads(request.body)
-        endpoint = data.get("endpoint")
-        keys     = data.get("keys", {})
-        p256dh   = keys.get("p256dh")
-        auth_key = keys.get("auth")
-
-        if not all([endpoint, p256dh, auth_key]):
-            return JsonResponse({"error": "Données incomplètes"}, status=400)
-
-        from .models import PushSubscription
-        sub, created = PushSubscription.objects.update_or_create(
-            endpoint = endpoint,
-            defaults = {
-                "user":       request.user,
-                "p256dh":     p256dh,
-                "auth":       auth_key,
-                "user_agent": request.META.get("HTTP_USER_AGENT", "")[:300],
-            }
-        )
-        action = "créé" if created else "mis à jour"
-        return JsonResponse({"status": f"Abonnement {action}"})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@csrf_exempt
-@login_required
-def push_unsubscribe(request):
-    """Supprime un abonnement push."""
-    if request.method != "POST":
-        return JsonResponse({"error": "POST requis"}, status=405)
-
-    try:
-        from .models import PushSubscription
-        data     = json.loads(request.body)
-        endpoint = data.get("endpoint")
-        PushSubscription.objects.filter(
-            user=request.user, endpoint=endpoint
-        ).delete()
-        return JsonResponse({"status": "Désabonné"})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
 # ── Gestion Engins (CRUD) ─────────────────────────────────────
 
 @login_required
@@ -1125,7 +1060,6 @@ def delete_consommation_diverse(request, pk):
 
 # ── Paramètres ────────────────────────────────────────────────
 
-import base64
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 

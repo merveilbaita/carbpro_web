@@ -40,8 +40,4 @@ urlpatterns = [
     path("parametres/",          views.parametres,          name="parametres"),
     path("api/parametres/",      views.api_parametres,      name="api_parametres"),
     path("normes/",              views.normes_consommation,  name="normes_consommation"),
-    # Web Push Notifications
-    path("push/vapid-public-key/", views.push_vapid_public_key, name="push_vapid_public_key"),
-    path("push/subscribe/",        views.push_subscribe,        name="push_subscribe"),
-    path("push/unsubscribe/",      views.push_unsubscribe,      name="push_unsubscribe"),
 ]
