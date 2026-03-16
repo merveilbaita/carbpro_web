@@ -1,32 +1,53 @@
 {% extends "base.html" %}
-{% block title %}Entrée carburant{% endblock %}
-
+{% block title %}Opération Stock{% endblock %}
 {% block content %}
 <div class="mb-3">
   <a href="{% url 'dashboard' %}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left"></i> Retour
   </a>
 </div>
-
 <div class="row justify-content-center">
   <div class="col-12 col-md-8 col-lg-6">
 
-    <!-- Stock actuel -->
     <div class="alert {% if stock < 0 %}alert-danger{% else %}alert-success{% endif %} d-flex align-items-center gap-2 mb-3">
       <i class="bi bi-droplet-half fs-5"></i>
-      <div>
-        <strong>Stock actuel :</strong>
+      <div><strong>Stock actuel :</strong>
         <span class="fs-5 fw-bold ms-1">{{ stock|floatformat:0 }} L</span>
       </div>
     </div>
 
     <div class="form-card">
       <h5 class="fw-bold mb-4" style="color:#1A3A6B">
-        <i class="bi bi-truck me-2 text-primary"></i>Entrée de carburant (ravitaillement stock)
+        <i class="bi bi-fuel-pump me-2"></i>Opération sur le stock
       </h5>
 
       <form method="post" novalidate>
         {% csrf_token %}
+
+        <!-- Type opération -->
+        <div class="mb-4">
+          <label class="form-label fw-semibold">{{ form.type_operation.label }}</label>
+          <div class="d-flex gap-3 flex-wrap">
+            {% for choice in form.type_operation %}
+            <div class="form-check">
+              {{ choice.tag }}
+              <label class="form-check-label" for="{{ choice.id_for_label }}">
+                {% if choice.data.value == "entree" %}
+                  <span class="badge bg-success me-1">↓</span>
+                {% else %}
+                  <span class="badge bg-danger me-1">↑</span>
+                {% endif %}
+                {{ choice.choice_label }}
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+          <div id="sortie-warning" class="alert alert-warning py-2 small mt-2" style="display:none">
+            <i class="bi bi-exclamation-triangle"></i>
+            Une <strong>sortie directe</strong> diminue le stock sans passer par un engin.
+            À utiliser pour régularisation ou débit fournisseur.
+          </div>
+        </div>
 
         <div class="mb-3">
           {{ form.date.label_tag }}
@@ -52,11 +73,37 @@
           {{ form.description }}
         </div>
 
-        <button type="submit" class="btn btn-primary w-100 btn-lg">
-          <i class="bi bi-check-circle me-2"></i>Enregistrer l'entrée
+        <button type="submit" class="btn btn-primary w-100 btn-lg" id="submit-btn">
+          <i class="bi bi-check-circle me-2"></i>Enregistrer
         </button>
       </form>
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var radios = document.querySelectorAll('input[name="type_operation"]');
+  var warning = document.getElementById('sortie-warning');
+  var btn = document.getElementById('submit-btn');
+
+  function updateUI() {
+    var val = document.querySelector('input[name="type_operation"]:checked');
+    if (val && val.value === 'sortie') {
+      warning.style.display = 'block';
+      btn.className = 'btn btn-danger w-100 btn-lg';
+      btn.innerHTML = '<i class="bi bi-dash-circle me-2"></i>Enregistrer la sortie';
+    } else {
+      warning.style.display = 'none';
+      btn.className = 'btn btn-success w-100 btn-lg';
+      btn.innerHTML = '<i class="bi bi-check-circle me-2"></i>Enregistrer l\'entrée';
+    }
+  }
+
+  radios.forEach(function(r) { r.addEventListener('change', updateUI); });
+  updateUI();
+});
+</script>
 {% endblock %}

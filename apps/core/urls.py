@@ -37,8 +37,9 @@ urlpatterns = [
     path("rapports/attestation.pdf",   views.pdf_attestation,      name="pdf_attestation"),
     path("rapports/mensuel.pdf",       views.pdf_rapport_mensuel,  name="pdf_rapport_mensuel"),
     # Paramètres
-    path("parametres/",     views.parametres,     name="parametres"),
-    path("api/parametres/", views.api_parametres, name="api_parametres"),
+    path("parametres/",          views.parametres,          name="parametres"),
+    path("api/parametres/",      views.api_parametres,      name="api_parametres"),
+    path("normes/",              views.normes_consommation,  name="normes_consommation"),
     # Web Push Notifications
     path("push/vapid-public-key/", views.push_vapid_public_key, name="push_vapid_public_key"),
     path("push/subscribe/",        views.push_subscribe,        name="push_subscribe"),

@@ -46,6 +46,10 @@
      class="nav-link {% if request.resolver_match.url_name == 'parametres' %}active{% endif %}">
     <i class="bi bi-gear-fill"></i> Paramètres
   </a>
+  <a href="{% url 'normes_consommation' %}"
+     class="nav-link {% if request.resolver_match.url_name == 'normes_consommation' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i> Normes
+  </a>
   {% endif %}
   <a href="{% url 'gestion_engins' %}"
      class="nav-link {% if 'engin' in request.resolver_match.url_name %}active{% endif %}">

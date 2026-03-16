@@ -14,6 +14,20 @@ class Command(BaseCommand):
 
         # ── Créer la table UserProfile manuellement si absente ─
         tables = connection.introspection.table_names()
+        # Créer aussi core_normeconsommation si absente
+        if "core_normeconsommation" not in tables:
+            with connection.cursor() as cursor:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS core_normeconsommation (
+                        id         SERIAL PRIMARY KEY,
+                        type_engin VARCHAR(30) NOT NULL UNIQUE,
+                        norme      FLOAT NOT NULL,
+                        unite      VARCHAR(5) NOT NULL DEFAULT 'h',
+                        tolerance  FLOAT NOT NULL DEFAULT 10.0,
+                        seuil_min  FLOAT
+                    )
+                """)
+
         # Créer aussi core_pushsubscription si absente
         if "core_pushsubscription" not in tables:
             with connection.cursor() as cursor:

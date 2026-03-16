@@ -246,15 +246,18 @@ def ravitaillement_stock(request):
     if request.method == "POST":
         form = RavitaillementStockForm(request.POST)
         if form.is_valid():
-            op = form.save(commit=False)
-            op.type      = "entree"
+            op           = form.save(commit=False)
+            op.type      = form.cleaned_data.get("type_operation", "entree")
             op.operateur = request.user
-            # Calcul stock_apres
-            stock_avant = get_stock_actuel()
-            op.stock_apres = stock_avant + op.quantite
+            stock_avant  = get_stock_actuel()
+            if op.type == "entree":
+                op.stock_apres = stock_avant + op.quantite
+            else:
+                op.stock_apres = stock_avant - op.quantite
             op.save()
+            type_label = "Entrée" if op.type == "entree" else "Sortie"
             messages.success(request,
-                f"✅ Entrée de {op.quantite:,.0f} L enregistrée. "
+                f"✅ {type_label} de {op.quantite:,.0f} L enregistrée. "
                 f"Stock actuel : {op.stock_apres:,.0f} L")
             return redirect("dashboard")
     else:
@@ -1290,3 +1293,76 @@ def pdf_rapport_mensuel(request):
     except Exception as e:
         messages.error(request, f"❌ Erreur génération PDF : {e}")
         return redirect("rapports")
+
+
+# ── Normes de consommation ────────────────────────────────────
+
+@admin_required
+def normes_consommation(request):
+    from .models import NormeConsommation, TYPES_ENGINS
+    from django.db.models import Q
+
+    # Types avec suivi index seulement
+    TYPES_AVEC_INDEX = [
+        "camion_benne", "excavatrice", "chargeur",
+        "bulldozer", "niveleuse", "compacteur"
+    ]
+
+    # Charger ou créer les normes par défaut
+    DEFAULTS = {
+        "camion_benne": (2.0, "km", 10.0, 1.9),
+        "excavatrice":  (25.0, "h", 10.0, None),
+        "chargeur":     (20.0, "h", 10.0, None),
+        "bulldozer":    (27.0, "h", 10.0, None),
+        "niveleuse":    (14.0, "h", 10.0, None),
+        "compacteur":   (12.0, "h", 10.0, None),
+    }
+
+    if request.method == "POST":
+        for type_engin in TYPES_AVEC_INDEX:
+            norme_val   = request.POST.get(f"norme_{type_engin}")
+            unite_val   = request.POST.get(f"unite_{type_engin}")
+            tol_val     = request.POST.get(f"tolerance_{type_engin}")
+            seuil_val   = request.POST.get(f"seuil_min_{type_engin}") or None
+
+            if norme_val:
+                obj, _ = NormeConsommation.objects.get_or_create(
+                    type_engin=type_engin,
+                    defaults=DEFAULTS.get(type_engin, (0, "h", 10, None)) and {
+                        "norme": float(norme_val),
+                        "unite": unite_val or "h",
+                        "tolerance": float(tol_val or 10),
+                        "seuil_min": float(seuil_val) if seuil_val else None,
+                    }
+                )
+                obj.norme     = float(norme_val)
+                obj.unite     = unite_val or "h"
+                obj.tolerance = float(tol_val or 10)
+                obj.seuil_min = float(seuil_val) if seuil_val else None
+                obj.save()
+
+        messages.success(request, "✅ Normes de consommation mises à jour.")
+        return redirect("normes_consommation")
+
+    # Construire la liste avec les valeurs actuelles
+    normes = []
+    for type_engin in TYPES_AVEC_INDEX:
+        label = dict(TYPES_ENGINS).get(type_engin, type_engin)
+        d     = DEFAULTS.get(type_engin, (0, "h", 10, None))
+        try:
+            obj = NormeConsommation.objects.get(type_engin=type_engin)
+            normes.append({
+                "type_engin": type_engin, "label": label,
+                "norme": obj.norme, "unite": obj.unite,
+                "tolerance": obj.tolerance, "seuil_min": obj.seuil_min,
+                "source": "personnalisée",
+            })
+        except NormeConsommation.DoesNotExist:
+            normes.append({
+                "type_engin": type_engin, "label": label,
+                "norme": d[0], "unite": d[1],
+                "tolerance": d[2], "seuil_min": d[3],
+                "source": "défaut",
+            })
+
+    return render(request, "core/normes.html", {"normes": normes})

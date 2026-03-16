@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Normes de consommation{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <h5 class="fw-bold mb-0" style="color:#1A3A6B">
+    <i class="bi bi-speedometer2"></i> Normes de consommation
+  </h5>
+</div>
+
+<div class="alert alert-info small mb-4">
+  <i class="bi bi-info-circle me-2"></i>
+  Ces normes servent à détecter les <strong>anomalies de consommation</strong> lors
+  des ravitaillements engins. Si la consommation réelle dépasse la norme
+  de la tolérance configurée, le ravitaillement est marqué
+  <span class="badge bg-danger">Anomalie</span>.
+</div>
+
+<form method="post">
+  {% csrf_token %}
+  <div class="row g-3">
+    {% for n in normes %}
+    <div class="col-12 col-md-6 col-xl-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center"
+             style="background:#1A3A6B; color:white">
+          <span class="fw-bold">{{ n.label }}</span>
+          <span class="badge {% if n.source == 'défaut' %}bg-secondary{% else %}bg-warning text-dark{% endif %} small">
+            {{ n.source }}
+          </span>
+        </div>
+        <div class="card-body">
+
+          <!-- Norme principale -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">
+              Norme de consommation *
+            </label>
+            <div class="input-group">
+              <input type="number" name="norme_{{ n.type_engin }}"
+                     value="{{ n.norme }}" step="0.1" min="0.1"
+                     class="form-control" required>
+              <select name="unite_{{ n.type_engin }}" class="form-select" style="max-width:110px">
+                <option value="h" {% if n.unite == "h" %}selected{% endif %}>L/h</option>
+                <option value="km" {% if n.unite == "km" %}selected{% endif %}>km/L</option>
+              </select>
+            </div>
+            <div class="form-text">
+              {% if n.unite == "km" %}
+              Rendement kilométrique — plus c'est élevé, mieux c'est
+              {% else %}
+              Consommation horaire — plus c'est bas, mieux c'est
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Tolérance -->
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Tolérance (%)</label>
+            <div class="input-group">
+              <input type="number" name="tolerance_{{ n.type_engin }}"
+                     value="{{ n.tolerance }}" step="1" min="0" max="100"
+                     class="form-control">
+              <span class="input-group-text">%</span>
+            </div>
+            <div class="form-text">
+              Écart accepté avant de signaler une anomalie
+            </div>
+          </div>
+
+          <!-- Seuil minimum (camions uniquement) -->
+          {% if n.unite == "km" %}
+          <div class="mb-2">
+            <label class="form-label fw-semibold small">Seuil minimum (km/L)</label>
+            <input type="number" name="seuil_min_{{ n.type_engin }}"
+                   value="{{ n.seuil_min|default:'' }}" step="0.1" min="0"
+                   class="form-control" placeholder="Ex: 1.9">
+            <div class="form-text">
+              En dessous de ce seuil → anomalie directe
+            </div>
+          </div>
+          {% else %}
+          <input type="hidden" name="seuil_min_{{ n.type_engin }}" value="">
+          {% endif %}
+
+          <!-- Aperçu calcul -->
+          <div class="bg-light rounded p-2 mt-2 small text-muted">
+            <i class="bi bi-calculator me-1"></i>
+            <strong>Seuil d'anomalie :</strong>
+            {% if n.unite == "h" %}
+              &gt; {{ n.norme }} × (1 + {{ n.tolerance }}%) =
+              <strong>{{ n.norme|floatformat:1 }} L/h</strong> +{{ n.tolerance }}%
+            {% else %}
+              &lt; {{ n.norme }} km/L - {{ n.tolerance }}%
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="mt-4">
+    <button type="submit" class="btn btn-primary btn-lg">
+      <i class="bi bi-check-circle me-2"></i>Enregistrer toutes les normes
+    </button>
+    <a href="{% url 'parametres' %}" class="btn btn-outline-secondary btn-lg ms-2">
+      Retour aux paramètres
+    </a>
+  </div>
+</form>
+{% endblock %}

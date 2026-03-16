@@ -124,6 +124,24 @@ class Migration(migrations.Migration):
             options={'ordering': ['-date', '-cree_le'], 'verbose_name': 'Consommation Diverse'},
         ),
     
+
+        migrations.CreateModel(
+            name='NormeConsommation',
+            fields=[
+                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('type_engin', models.CharField(max_length=30, unique=True, choices=[
+                    ('camion_benne','Camion Benne'),('excavatrice','Excavatrice'),
+                    ('chargeur','Chargeur'),('bulldozer','Bulldozer'),
+                    ('niveleuse','Niveleuse'),('compacteur','Compacteur'),
+                    ('vehicule','Véhicule'),('equipement_fixe','Équipement Fixe'),
+                    ('autre','Autre')])),
+                ('norme', models.FloatField()),
+                ('unite', models.CharField(max_length=5, default='h', choices=[('km','km/L (camions)'),('h','L/h (engins)')])),
+                ('tolerance', models.FloatField(default=10.0)),
+                ('seuil_min', models.FloatField(null=True, blank=True)),
+            ],
+            options={'verbose_name': 'Norme de consommation', 'ordering': ['type_engin']},
+        ),
         migrations.CreateModel(
             name='PushSubscription',
             fields=[

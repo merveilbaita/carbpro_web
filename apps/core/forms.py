@@ -7,7 +7,15 @@ from .models import (
 
 
 class RavitaillementStockForm(forms.ModelForm):
-    """Formulaire entrée de carburant (ravitaillement stock)."""
+    """Formulaire entrée/sortie de carburant (ravitaillement stock)."""
+
+    type_operation = forms.ChoiceField(
+        choices=[("entree", "Entrée (réception carburant)"),
+                 ("sortie", "Sortie directe (débit fournisseur)")],
+        label="Type d'opération *",
+        initial="entree",
+        widget=forms.RadioSelect(attrs={"class": "form-check-input"})
+    )
 
     class Meta:
         model  = OperationStock
