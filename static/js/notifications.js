@@ -144,7 +144,8 @@
             if (r.ok) {
               updateBoutonNotif(true, false);
               cacherBanniere();
-              showMsg('Notifications activées !', 'success');
+              sessionStorage.setItem('notif-dismissed', '1');
+              showMsg('Notifications activees !', 'success');
             }
           }).catch(function(err) {
             console.error('[Push]', err);
