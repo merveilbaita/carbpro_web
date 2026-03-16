@@ -4,9 +4,44 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
+# ── Constantes ────────────────────────────────────────────────
+
 ROLES = [
     ("administrateur", "Administrateur"),
     ("operateur",      "Opérateur"),
+]
+
+TYPES_ENGINS = [
+    ("camion_benne",    "Camion Benne"),
+    ("excavatrice",     "Excavatrice"),
+    ("chargeur",        "Chargeur"),
+    ("bulldozer",       "Bulldozer"),
+    ("niveleuse",       "Niveleuse"),
+    ("compacteur",      "Compacteur"),
+    ("vehicule",        "Véhicule"),
+    ("equipement_fixe", "Équipement Fixe"),
+    ("autre",           "Autre"),
+]
+
+MODES_APPRO = [
+    ("avec_index",  "Avec suivi d'index"),
+    ("sans_index",  "Sans suivi d'index"),
+]
+
+STATUTS_RAV = [
+    ("normal",      "Normal"),
+    ("anomalie",    "Anomalie"),
+    ("non_verifie", "Non vérifié"),
+    ("panne_index", "Panne d'index"),
+]
+
+CATEGORIES_DIVERSES = [
+    ("Garage",                  "Garage"),
+    ("Groupe électrogène",      "Groupe électrogène"),
+    ("Bidon",                   "Bidon"),
+    ("Fuel Tank",               "Fuel Tank"),
+    ("Land Cruiser Direction",  "Land Cruiser Direction"),
+    ("Autre",                   "Autre"),
 ]
 
 
@@ -102,40 +137,6 @@ class PushSubscription(models.Model):
             "keys": {"p256dh": self.p256dh, "auth": self.auth},
         }
 
-
-
-TYPES_ENGINS = [
-    ("camion_benne",    "Camion Benne"),
-    ("excavatrice",     "Excavatrice"),
-    ("chargeur",        "Chargeur"),
-    ("bulldozer",       "Bulldozer"),
-    ("niveleuse",       "Niveleuse"),
-    ("compacteur",      "Compacteur"),
-    ("vehicule",        "Véhicule"),
-    ("equipement_fixe", "Équipement Fixe"),
-    ("autre",           "Autre"),
-]
-
-MODES_APPRO = [
-    ("avec_index",  "Avec suivi d'index"),
-    ("sans_index",  "Sans suivi d'index"),
-]
-
-STATUTS_RAV = [
-    ("normal",      "Normal"),
-    ("anomalie",    "Anomalie"),
-    ("non_verifie", "Non vérifié"),
-    ("panne_index", "Panne d'index"),
-]
-
-CATEGORIES_DIVERSES = [
-    ("Garage",                  "Garage"),
-    ("Groupe électrogène",      "Groupe électrogène"),
-    ("Bidon",                   "Bidon"),
-    ("Fuel Tank",               "Fuel Tank"),
-    ("Land Cruiser Direction",  "Land Cruiser Direction"),
-    ("Autre",                   "Autre"),
-]
 
 
 # ── Paramètre ─────────────────────────────────────────────────
