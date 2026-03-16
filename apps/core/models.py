@@ -98,7 +98,7 @@ class NormeConsommation(models.Model):
         DEFAULTS = {
             "camion_benne": (2.0, "km", 10.0, 1.9),
             "excavatrice":  (25.0, "h", 10.0, None),
-            "chargeur":     (20.0, "h", 10.0, None),
+            "chargeur":     (14.0, "h", 10.0, None),
             "bulldozer":    (27.0, "h", 10.0, None),
             "niveleuse":    (14.0, "h", 10.0, None),
             "compacteur":   (12.0, "h", 10.0, None),
