@@ -98,7 +98,7 @@ class NormeConsommation(models.Model):
         DEFAULTS = {
             "camion_benne": (2.0, "km", 10.0, 1.9),
             "excavatrice":  (25.0, "h", 10.0, None),
-            "chargeur":     (14.0, "h", 10.0, None),
+            "chargeur":     (20.0, "h", 10.0, None),
             "bulldozer":    (27.0, "h", 10.0, None),
             "niveleuse":    (14.0, "h", 10.0, None),
             "compacteur":   (12.0, "h", 10.0, None),
@@ -113,6 +113,30 @@ class NormeConsommation(models.Model):
                 return {"norme": d[0], "unite": d[1],
                         "tolerance": d[2], "seuil_min": d[3]}
             return None
+
+
+class PushSubscription(models.Model):
+    """Abonnement Web Push d'un utilisateur sur un appareil."""
+    user      = models.ForeignKey(User, on_delete=models.CASCADE,
+                                   related_name="push_subscriptions")
+    endpoint  = models.TextField(unique=True)
+    p256dh    = models.TextField()
+    auth      = models.TextField()
+    user_agent = models.CharField(max_length=300, blank=True)
+    cree_le   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Abonnement Push"
+
+    def __str__(self):
+        return f"{self.user.username} — {self.endpoint[:60]}..."
+
+    def to_dict(self):
+        return {
+            "endpoint": self.endpoint,
+            "keys": {"p256dh": self.p256dh, "auth": self.auth},
+        }
+
 
 
 # ── Paramètre ─────────────────────────────────────────────────
