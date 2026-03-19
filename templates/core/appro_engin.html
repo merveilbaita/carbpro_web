@@ -11,11 +11,17 @@
 <div class="row justify-content-center">
   <div class="col-12 col-md-9 col-lg-7">
 
-    <div class="alert {% if stock < 0 %}alert-danger{% else %}alert-success{% endif %} d-flex align-items-center gap-2 mb-3">
+    <div class="alert {% if stock <= 0 %}alert-danger{% elif stock_bas %}alert-warning{% else %}alert-success{% endif %} d-flex align-items-center gap-2 mb-3">
       <i class="bi bi-droplet-half fs-5"></i>
       <div>
         <strong>Stock actuel :</strong>
         <span class="fs-5 fw-bold ms-1">{{ stock|floatformat:0 }} L</span>
+        {% if seuil > 0 %}
+        <span class="text-muted small ms-2">— Seuil minimum : {{ seuil|floatformat:0 }} L</span>
+        {% endif %}
+        <br><span class="small fw-semibold {% if max_autorise <= 0 %}text-danger{% else %}text-success{% endif %}">
+          ✓ Maximum autorisé : <strong>{{ max_autorise|floatformat:0 }} L</strong>
+        </span>
       </div>
     </div>
 

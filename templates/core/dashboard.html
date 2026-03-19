@@ -29,13 +29,6 @@
 </div>
 {% endif %}
 
-<!-- Invite notification -->
-<div id="notif-dashboard-card" class="alert alert-primary d-flex align-items-center gap-3 mb-3" style="display:none">
-  <i class="bi bi-bell-fill fs-4 flex-shrink-0"></i>
-  <div class="flex-grow-1">
-    <strong>Notifications en temps réel</strong><br>
-    <small>Activez les alertes carburant sur cet appareil.</small>
-  </div>
   <button id="notif-activer-btn" class="btn btn-primary btn-sm flex-shrink-0">
     <i class="bi bi-bell"></i> Activer
   </button>
@@ -227,26 +220,4 @@
     </div>
   </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(function() {
-    var isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    var isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                       window.navigator.standalone === true;
-    if (!('PushManager' in window)) return;
-    if (isIOS && !isStandalone) return;
-    if (Notification.permission === 'denied') return;
-    if (sessionStorage.getItem('notif-banner-shown')) return;
-    navigator.serviceWorker.ready.then(function(reg) {
-      reg.pushManager.getSubscription().then(function(sub) {
-        if (!sub) document.getElementById('notif-dashboard-card').style.display = 'flex';
-      });
-    });
-  }, 2000);
-});
-</script>
 {% endblock %}

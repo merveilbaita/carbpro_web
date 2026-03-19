@@ -250,10 +250,25 @@ def ravitaillement_stock(request):
             op.type      = form.cleaned_data.get("type_operation", "entree")
             op.operateur = request.user
             stock_avant  = get_stock_actuel()
+            seuil_min    = float(Parametre.get("seuil_alerte_stock", "0"))
+
             if op.type == "entree":
                 op.stock_apres = stock_avant + op.quantite
             else:
-                op.stock_apres = stock_avant - op.quantite
+                stock_apres = stock_avant - op.quantite
+                if stock_apres < seuil_min:
+                    manque = op.quantite - (stock_avant - seuil_min)
+                    messages.error(request,
+                        f"❌ Stock insuffisant — Stock actuel : {stock_avant:,.0f} L, "
+                        f"Quantité demandée : {op.quantite:,.0f} L. "
+                        f"Il manque {manque:,.0f} L. "
+                        f"Maximum autorisé : {max(0, stock_avant - seuil_min):,.0f} L."
+                    )
+                    return render(request, "core/ravitaillement_stock.html", {
+                        "form": form, "stock": stock_avant,
+                    })
+                op.stock_apres = stock_apres
+
             op.save()
             type_label = "Entrée" if op.type == "entree" else "Sortie"
             messages.success(request,
@@ -315,9 +330,33 @@ def appro_engin(request):
                 else:
                     rav.statut = "non_verifie"
 
-            # Sortie stock
+            # ── Vérification stock suffisant ──────────────────
             stock_avant = get_stock_actuel()
+            seuil_min   = float(Parametre.get("seuil_alerte_stock", "0"))
             stock_apres = stock_avant - rav.qte_donnee
+
+            if stock_apres < seuil_min:
+                manque = rav.qte_donnee - (stock_avant - seuil_min)
+                messages.error(request,
+                    f"❌ Stock insuffisant — Stock actuel : {stock_avant:,.0f} L, "
+                    f"Quantité demandée : {rav.qte_donnee:,.0f} L. "
+                    f"Il manque {manque:,.0f} L pour atteindre le seuil minimum de {seuil_min:,.0f} L. "
+                    f"Maximum autorisé : {max(0, stock_avant - seuil_min):,.0f} L."
+                )
+                form = ApproEnginForm(request.POST)
+                engins_data = {}
+                for e in Engin.objects.filter(actif=True):
+                    dernier = RavitaillementEngin.objects.filter(
+                        engin=e).order_by("-date", "-cree_le").first()
+                    engins_data[e.id_engin] = {
+                        "mode": e.mode_appro, "type": e.type_engin,
+                        "dernier_index": dernier.index_actuel if dernier else 0,
+                    }
+                return render(request, "core/appro_engin.html", {
+                    "form": form, "stock": stock_avant,
+                    "engins_data": json.dumps(engins_data),
+                })
+
             rav.save()
 
             # Enregistrer la sortie correspondante
@@ -330,11 +369,9 @@ def appro_engin(request):
                 operateur   = request.user,
             )
 
-            tag_stock = f"⚠️ Stock négatif : {stock_apres:,.0f} L" if stock_apres < 0 \
-                        else f"Stock restant : {stock_apres:,.0f} L"
             messages.success(request,
                 f"✅ Ravitaillement {engin.id_engin} enregistré ({rav.qte_donnee:,.0f} L). "
-                f"{tag_stock}")
+                f"Stock restant : {stock_apres:,.0f} L")
             return redirect("dashboard")
     else:
         form = ApproEnginForm()
@@ -351,9 +388,11 @@ def appro_engin(request):
         }
 
     return render(request, "core/appro_engin.html", {
-        "form":        form,
-        "stock":       get_stock_actuel(),
-        "engins_data": json.dumps(engins_data),
+        "form":         form,
+        "stock":        get_stock_actuel(),
+        "seuil":        float(Parametre.get("seuil_alerte_stock", "0")),
+        "max_autorise": max(0, get_stock_actuel() - float(Parametre.get("seuil_alerte_stock", "0"))),
+        "engins_data":  json.dumps(engins_data),
     })
 
 
@@ -367,7 +406,23 @@ def consommation_diverse(request):
             div           = form.save(commit=False)
             div.operateur = request.user
             stock_avant   = get_stock_actuel()
-            div.stock_apres = stock_avant - div.quantite
+            seuil_min     = float(Parametre.get("seuil_alerte_stock", "0"))
+            stock_apres   = stock_avant - div.quantite
+
+            if stock_apres < seuil_min:
+                manque = div.quantite - (stock_avant - seuil_min)
+                messages.error(request,
+                    f"❌ Stock insuffisant — Stock actuel : {stock_avant:,.0f} L, "
+                    f"Quantité demandée : {div.quantite:,.0f} L. "
+                    f"Il manque {manque:,.0f} L. "
+                    f"Maximum autorisé : {max(0, stock_avant - seuil_min):,.0f} L."
+                )
+                return render(request, "core/consommation_diverse.html", {
+                    "form": ConsommationDiverseForm(request.POST),
+                    "stock": stock_avant,
+                })
+
+            div.stock_apres = stock_apres
             div.save()
 
             OperationStock.objects.create(
@@ -793,71 +848,6 @@ def supprimer_utilisateur(request, user_id):
     })
 
 
-# ── Web Push — abonnements ────────────────────────────────────
-
-from django.views.decorators.csrf import csrf_exempt
-from django.http import JsonResponse
-
-@login_required
-def push_vapid_public_key(request):
-    """Retourne la clé publique VAPID pour le client JS."""
-    from django.conf import settings
-    return JsonResponse({"publicKey": settings.VAPID_PUBLIC_KEY})
-
-
-@csrf_exempt
-@login_required
-def push_subscribe(request):
-    """Enregistre ou met à jour un abonnement push."""
-    if request.method != "POST":
-        return JsonResponse({"error": "POST requis"}, status=405)
-
-    try:
-        data     = json.loads(request.body)
-        endpoint = data.get("endpoint")
-        keys     = data.get("keys", {})
-        p256dh   = keys.get("p256dh")
-        auth_key = keys.get("auth")
-
-        if not all([endpoint, p256dh, auth_key]):
-            return JsonResponse({"error": "Données incomplètes"}, status=400)
-
-        from .models import PushSubscription
-        sub, created = PushSubscription.objects.update_or_create(
-            endpoint = endpoint,
-            defaults = {
-                "user":       request.user,
-                "p256dh":     p256dh,
-                "auth":       auth_key,
-                "user_agent": request.META.get("HTTP_USER_AGENT", "")[:300],
-            }
-        )
-        action = "créé" if created else "mis à jour"
-        return JsonResponse({"status": f"Abonnement {action}"})
-
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@csrf_exempt
-@login_required
-def push_unsubscribe(request):
-    """Supprime un abonnement push."""
-    if request.method != "POST":
-        return JsonResponse({"error": "POST requis"}, status=405)
-
-    try:
-        from .models import PushSubscription
-        data     = json.loads(request.body)
-        endpoint = data.get("endpoint")
-        PushSubscription.objects.filter(
-            user=request.user, endpoint=endpoint
-        ).delete()
-        return JsonResponse({"status": "Désabonné"})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
 # ── Gestion Engins (CRUD) ─────────────────────────────────────
 
 @login_required
@@ -1125,7 +1115,6 @@ def delete_consommation_diverse(request, pk):
 
 # ── Paramètres ────────────────────────────────────────────────
 
-import base64
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 
