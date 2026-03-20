@@ -250,25 +250,10 @@ def ravitaillement_stock(request):
             op.type      = form.cleaned_data.get("type_operation", "entree")
             op.operateur = request.user
             stock_avant  = get_stock_actuel()
-            seuil_min    = float(Parametre.get("seuil_alerte_stock", "0"))
-
             if op.type == "entree":
                 op.stock_apres = stock_avant + op.quantite
             else:
-                stock_apres = stock_avant - op.quantite
-                if stock_apres < seuil_min:
-                    manque = op.quantite - (stock_avant - seuil_min)
-                    messages.error(request,
-                        f"❌ Stock insuffisant — Stock actuel : {stock_avant:,.0f} L, "
-                        f"Quantité demandée : {op.quantite:,.0f} L. "
-                        f"Il manque {manque:,.0f} L. "
-                        f"Maximum autorisé : {max(0, stock_avant - seuil_min):,.0f} L."
-                    )
-                    return render(request, "core/ravitaillement_stock.html", {
-                        "form": form, "stock": stock_avant,
-                    })
-                op.stock_apres = stock_apres
-
+                op.stock_apres = stock_avant - op.quantite
             op.save()
             type_label = "Entrée" if op.type == "entree" else "Sortie"
             messages.success(request,
@@ -330,33 +315,9 @@ def appro_engin(request):
                 else:
                     rav.statut = "non_verifie"
 
-            # ── Vérification stock suffisant ──────────────────
+            # Sortie stock
             stock_avant = get_stock_actuel()
-            seuil_min   = float(Parametre.get("seuil_alerte_stock", "0"))
             stock_apres = stock_avant - rav.qte_donnee
-
-            if stock_apres < seuil_min:
-                manque = rav.qte_donnee - (stock_avant - seuil_min)
-                messages.error(request,
-                    f"❌ Stock insuffisant — Stock actuel : {stock_avant:,.0f} L, "
-                    f"Quantité demandée : {rav.qte_donnee:,.0f} L. "
-                    f"Il manque {manque:,.0f} L pour atteindre le seuil minimum de {seuil_min:,.0f} L. "
-                    f"Maximum autorisé : {max(0, stock_avant - seuil_min):,.0f} L."
-                )
-                form = ApproEnginForm(request.POST)
-                engins_data = {}
-                for e in Engin.objects.filter(actif=True):
-                    dernier = RavitaillementEngin.objects.filter(
-                        engin=e).order_by("-date", "-cree_le").first()
-                    engins_data[e.id_engin] = {
-                        "mode": e.mode_appro, "type": e.type_engin,
-                        "dernier_index": dernier.index_actuel if dernier else 0,
-                    }
-                return render(request, "core/appro_engin.html", {
-                    "form": form, "stock": stock_avant,
-                    "engins_data": json.dumps(engins_data),
-                })
-
             rav.save()
 
             # Enregistrer la sortie correspondante
@@ -369,9 +330,11 @@ def appro_engin(request):
                 operateur   = request.user,
             )
 
+            tag_stock = f"⚠️ Stock négatif : {stock_apres:,.0f} L" if stock_apres < 0 \
+                        else f"Stock restant : {stock_apres:,.0f} L"
             messages.success(request,
                 f"✅ Ravitaillement {engin.id_engin} enregistré ({rav.qte_donnee:,.0f} L). "
-                f"Stock restant : {stock_apres:,.0f} L")
+                f"{tag_stock}")
             return redirect("dashboard")
     else:
         form = ApproEnginForm()
@@ -388,11 +351,9 @@ def appro_engin(request):
         }
 
     return render(request, "core/appro_engin.html", {
-        "form":         form,
-        "stock":        get_stock_actuel(),
-        "seuil":        float(Parametre.get("seuil_alerte_stock", "0")),
-        "max_autorise": max(0, get_stock_actuel() - float(Parametre.get("seuil_alerte_stock", "0"))),
-        "engins_data":  json.dumps(engins_data),
+        "form":        form,
+        "stock":       get_stock_actuel(),
+        "engins_data": json.dumps(engins_data),
     })
 
 
@@ -406,23 +367,7 @@ def consommation_diverse(request):
             div           = form.save(commit=False)
             div.operateur = request.user
             stock_avant   = get_stock_actuel()
-            seuil_min     = float(Parametre.get("seuil_alerte_stock", "0"))
-            stock_apres   = stock_avant - div.quantite
-
-            if stock_apres < seuil_min:
-                manque = div.quantite - (stock_avant - seuil_min)
-                messages.error(request,
-                    f"❌ Stock insuffisant — Stock actuel : {stock_avant:,.0f} L, "
-                    f"Quantité demandée : {div.quantite:,.0f} L. "
-                    f"Il manque {manque:,.0f} L. "
-                    f"Maximum autorisé : {max(0, stock_avant - seuil_min):,.0f} L."
-                )
-                return render(request, "core/consommation_diverse.html", {
-                    "form": ConsommationDiverseForm(request.POST),
-                    "stock": stock_avant,
-                })
-
-            div.stock_apres = stock_apres
+            div.stock_apres = stock_avant - div.quantite
             div.save()
 
             OperationStock.objects.create(
@@ -1301,7 +1246,7 @@ def normes_consommation(request):
     DEFAULTS = {
         "camion_benne": (2.0, "km", 10.0, 1.9),
         "excavatrice":  (25.0, "h", 10.0, None),
-        "chargeur":     (14.0, "h", 10.0, None),
+        "chargeur":     (20.0, "h", 10.0, None),
         "bulldozer":    (27.0, "h", 10.0, None),
         "niveleuse":    (14.0, "h", 10.0, None),
         "compacteur":   (12.0, "h", 10.0, None),
